@@ -1,19 +1,18 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
   server: {
     middlewares: [
       (req, res, next) => {
-        // Redirige las peticiones de favicon al PNG del balón
         if (req.url === '/favicon.ico') {
-          res.writeHead(302, { 'Location': '/icon-192x192.png' })
-          res.end()
-          return
+          res.setHeader('Content-Type', 'image/svg+xml')
+          res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate')
+          res.end(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><circle cx="100" cy="100" r="95" fill="white" stroke="#333" stroke-width="2"/><circle cx="100" cy="100" r="90" fill="white" stroke="#000" stroke-width="1.5"/><polygon points="100,30 120,55 105,75 95,75 80,55" fill="black"/><polygon points="140,60 160,75 155,100 135,105 125,85" fill="black"/><polygon points="60,60 40,75 45,100 65,105 75,85" fill="black"/><polygon points="135,130 155,120 165,145 150,165 130,150" fill="black"/><polygon points="65,130 45,120 35,145 50,165 70,150" fill="black"/><polygon points="100,170 120,145 105,125 95,125 80,145" fill="black"/></svg>`)
+        } else {
+          next()
         }
-        next()
       }
     ]
   }
