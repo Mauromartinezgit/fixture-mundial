@@ -19,7 +19,21 @@ const ballSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
 
 async function generateIcons() {
   try {
-    // Generar PNGs normales
+    // Generar favicon.png
+    await sharp(Buffer.from(ballSvg))
+      .png()
+      .resize(64, 64, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 0 } })
+      .toFile(path.join(publicDir, 'favicon.png'));
+    console.log('✓ favicon.png generado');
+
+    // Generar ICO (favicon.ico)
+    await sharp(Buffer.from(ballSvg))
+      .png()
+      .resize(32, 32, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 0 } })
+      .toFile(path.join(publicDir, 'favicon.ico'));
+    console.log('✓ favicon.ico generado');
+
+    // Generar PNGs normales para PWA
     for (const size of sizes) {
       await sharp(Buffer.from(ballSvg))
         .png()
@@ -43,13 +57,12 @@ async function generateIcons() {
         .png()
         .toFile(path.join(publicDir, `icon-${size}x${size}-maskable.png`));
       
-      console.log(`✓ Generado: icon-${size}x${size}.png y icon-${size}x${size}-maskable.png`);
+      console.log(`✓ Generados: icon-${size}x${size}.png y icon-${size}x${size}-maskable.png`);
     }
     
-    console.log('✓ Todos los íconos han sido generados exitosamente');
+    console.log('✓ Todos los íconos completados');
   } catch (error) {
-    console.error('Error al generar íconos:', error);
-    process.exit(1);
+    console.error('Error:', error);
   }
 }
 
