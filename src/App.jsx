@@ -122,10 +122,21 @@ function calcStandings(gKey, scores) {
 }
 
 function ScoreInput({ value, onChange }) {
+  const handleChange = (e) => {
+    const v = e.target.value;
+    // Permitir solo números o vacío
+    if (v === "" || /^\d+$/.test(v)) {
+      // Limitar a máximo 2 dígitos (0-99)
+      if (v === "" || parseInt(v) <= 99) {
+        onChange(v);
+      }
+    }
+  };
+
   return (
     <input
-      type="number" min="0" max="99"
-      value={value} onChange={(e) => onChange(e.target.value)}
+      type="text" inputMode="numeric"
+      value={value} onChange={handleChange}
       placeholder="–"
       style={{
         width: 46, height: 38,
