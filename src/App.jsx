@@ -435,7 +435,7 @@ function getKnockoutData(scores, firstAndSecond, bestThirds) {
 // ============================================
 
 // MatchCard - Tarjeta de partido minimalista
-function MatchCardBase({ match, onScore, side = "left" }) {
+function MatchCardBase({ match, onScore }) {
   const sc = match.score || { h: "", a: "" };
   const has = Boolean(match.parsedScore);
   const canEdit = !isPendingTeamName(match.homeTeam) && !isPendingTeamName(match.awayTeam);
@@ -469,9 +469,9 @@ function MatchCardBase({ match, onScore, side = "left" }) {
           <div key={idx} style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between" }}>
             <div style={{
               flex: 1,
-              height: 28,
+              minHeight: 36,
               backgroundImage: flagUrl ? `url('${flagUrl}')` : "none",
-              backgroundSize: "cover",
+              backgroundSize: "contain",
               backgroundPosition: "center",
               backgroundRepeat: "no-repeat",
               borderRadius: 4,
@@ -481,6 +481,7 @@ function MatchCardBase({ match, onScore, side = "left" }) {
               position: "relative",
               overflow: "hidden",
               border: isWinner ? "2px solid #92400e" : "1px solid rgba(0,0,0,0.2)",
+              backgroundColor: "rgba(255,255,255,0.05)",
             }}>
               {!flagUrl && (
                 <span style={{
@@ -587,9 +588,9 @@ function FinalMatchBase({ match, onScore }) {
           <div key={idx} style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "space-between" }}>
             <div style={{
               flex: 1,
-              height: 32,
+              minHeight: 40,
               backgroundImage: flagUrl ? `url('${flagUrl}')` : "none",
-              backgroundSize: "cover",
+              backgroundSize: "contain",
               backgroundPosition: "center",
               backgroundRepeat: "no-repeat",
               borderRadius: 4,
@@ -599,6 +600,7 @@ function FinalMatchBase({ match, onScore }) {
               position: "relative",
               overflow: "hidden",
               border: isWinner ? "2px solid #92400e" : "1px solid rgba(0,0,0,0.2)",
+              backgroundColor: "rgba(255,255,255,0.05)",
             }}>
               {!flagUrl && (
                 <span style={{
