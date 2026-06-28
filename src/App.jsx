@@ -469,7 +469,7 @@ function MatchCardBase({ match, onScore }) {
           <div key={idx} style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between" }}>
             <div style={{
               flex: 1,
-              minHeight: 36,
+              minHeight: 40,
               backgroundImage: flagUrl ? `url('${flagUrl}')` : "none",
               backgroundSize: "contain",
               backgroundPosition: "center",
