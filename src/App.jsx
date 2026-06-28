@@ -493,7 +493,7 @@ const KnockoutMatchCard = memo(KnockoutMatchCardBase, (prevProps, nextProps) => 
   );
 });
 
-function BracketMatchSlot({ match, onScore, connector }) {
+function BracketMatchSlotBase({ match, onScore, connector }) {
   const lineColor = "rgba(148,163,184,0.55)";
 
   return (
@@ -526,7 +526,24 @@ function BracketMatchSlot({ match, onScore, connector }) {
   );
 }
 
-function KnockoutBracketColumn({ title, matches, onScore, topOffset = 0, gap = 8, cardMinWidth = 260, showConnectors = false }) {
+const BracketMatchSlot = memo(BracketMatchSlotBase, (prevProps, nextProps) => {
+  const prev = prevProps.match;
+  const next = nextProps.match;
+  const prevScore = prev.score || { h: "", a: "" };
+  const nextScore = next.score || { h: "", a: "" };
+
+  return (
+    prev.scoreKey === next.scoreKey &&
+    prev.homeTeam === next.homeTeam &&
+    prev.awayTeam === next.awayTeam &&
+    prev.winner === next.winner &&
+    prevScore.h === nextScore.h &&
+    prevScore.a === nextScore.a &&
+    prevProps.connector === nextProps.connector
+  );
+});
+
+function KnockoutBracketColumnBase({ title, matches, onScore, topOffset = 0, gap = 8, cardMinWidth = 260, showConnectors = false }) {
   return (
     <div style={{ marginTop: topOffset, minWidth: cardMinWidth }}>
       <div style={{
@@ -554,6 +571,39 @@ function KnockoutBracketColumn({ title, matches, onScore, topOffset = 0, gap = 8
     </div>
   );
 }
+
+const KnockoutBracketColumn = memo(KnockoutBracketColumnBase, (prevProps, nextProps) => {
+  if (
+    prevProps.title !== nextProps.title ||
+    prevProps.topOffset !== nextProps.topOffset ||
+    prevProps.gap !== nextProps.gap ||
+    prevProps.cardMinWidth !== nextProps.cardMinWidth ||
+    prevProps.showConnectors !== nextProps.showConnectors ||
+    prevProps.matches.length !== nextProps.matches.length
+  ) {
+    return false;
+  }
+
+  for (let idx = 0; idx < prevProps.matches.length; idx += 1) {
+    const prev = prevProps.matches[idx];
+    const next = nextProps.matches[idx];
+    const prevScore = prev.score || { h: "", a: "" };
+    const nextScore = next.score || { h: "", a: "" };
+
+    if (
+      prev.scoreKey !== next.scoreKey ||
+      prev.homeTeam !== next.homeTeam ||
+      prev.awayTeam !== next.awayTeam ||
+      prev.winner !== next.winner ||
+      prevScore.h !== nextScore.h ||
+      prevScore.a !== nextScore.a
+    ) {
+      return false;
+    }
+  }
+
+  return true;
+});
 
 function countPlayedGroupMatches(scores) {
   let count = 0;
@@ -797,6 +847,10 @@ export default function App() {
   const [scores, setScores] = useState(loadScores);
   const [useProvidedTable, setUseProvidedTable] = useState(true);
   const [activeMobileKoRound, setActiveMobileKoRound] = useState("R32");
+  const [isMobileView, setIsMobileView] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.innerWidth <= 900;
+  });
 
   // Guarda en localStorage con debounce para evitar bloquear la UI en cada tecla.
   useEffect(() => {
@@ -847,6 +901,16 @@ export default function App() {
         return { title: "16avos", matches: roundOf32 };
     }
   }, [activeMobileKoRound, roundOf32, roundOf16, quarterFinals, semiFinals, final]);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 900px)");
+    const handleChange = () => setIsMobileView(mediaQuery.matches);
+
+    handleChange();
+    mediaQuery.addEventListener("change", handleChange);
+
+    return () => mediaQuery.removeEventListener("change", handleChange);
+  }, []);
 
   const handleReset = () => {
     if (confirm("¿Resetear todos los resultados?")) {
@@ -960,66 +1024,68 @@ export default function App() {
           </div>
 
           <div style={{ padding: 12 }}>
-            <div className="ko-desktop" style={{
-              border: "1px solid #1e3a5f",
-              borderRadius: 10,
-              background: "rgba(255,255,255,0.02)",
-              padding: 10,
-              overflowX: "auto",
-            }}>
+            {!isMobileView ? (
               <div style={{
-                minWidth: 1500,
-                display: "grid",
-                gridTemplateColumns: "280px 280px 280px 280px 280px",
-                gap: 26,
-                alignItems: "start",
+                border: "1px solid #1e3a5f",
+                borderRadius: 10,
+                background: "rgba(255,255,255,0.02)",
+                padding: 10,
+                overflowX: "auto",
               }}>
-                <KnockoutBracketColumn title="16avos" matches={roundOf32} onScore={onScore} topOffset={0} gap={8} showConnectors />
-                <KnockoutBracketColumn title="Octavos" matches={roundOf16} onScore={onScore} topOffset={26} gap={34} showConnectors />
-                <KnockoutBracketColumn title="Cuartos" matches={quarterFinals} onScore={onScore} topOffset={70} gap={84} showConnectors />
-                <KnockoutBracketColumn title="Semifinales" matches={semiFinals} onScore={onScore} topOffset={155} gap={170} showConnectors />
-                <KnockoutBracketColumn title="Final" matches={final} onScore={onScore} topOffset={255} gap={8} />
+                <div style={{
+                  minWidth: 1500,
+                  display: "grid",
+                  gridTemplateColumns: "280px 280px 280px 280px 280px",
+                  gap: 26,
+                  alignItems: "start",
+                }}>
+                  <KnockoutBracketColumn title="16avos" matches={roundOf32} onScore={onScore} topOffset={0} gap={8} showConnectors />
+                  <KnockoutBracketColumn title="Octavos" matches={roundOf16} onScore={onScore} topOffset={26} gap={34} showConnectors />
+                  <KnockoutBracketColumn title="Cuartos" matches={quarterFinals} onScore={onScore} topOffset={70} gap={84} showConnectors />
+                  <KnockoutBracketColumn title="Semifinales" matches={semiFinals} onScore={onScore} topOffset={155} gap={170} showConnectors />
+                  <KnockoutBracketColumn title="Final" matches={final} onScore={onScore} topOffset={255} gap={8} />
+                </div>
               </div>
-            </div>
+            ) : (
+              <div style={{
+                border: "1px solid #1e3a5f",
+                borderRadius: 10,
+                background: "rgba(255,255,255,0.02)",
+                padding: 10,
+              }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(5,minmax(0,1fr))", gap: 6, marginBottom: 10 }}>
+                  {MOBILE_KO_ROUNDS.map((round) => (
+                    <button
+                      key={round.key}
+                      onClick={() => setActiveMobileKoRound(round.key)}
+                      style={{
+                        border: activeMobileKoRound === round.key ? "1px solid #22c55e" : "1px solid #334155",
+                        background: activeMobileKoRound === round.key ? "rgba(34,197,94,0.14)" : "#0a1628",
+                        color: activeMobileKoRound === round.key ? "#bbf7d0" : "#94a3b8",
+                        fontSize: 11,
+                        padding: "8px 4px",
+                        borderRadius: 8,
+                        fontFamily: "monospace",
+                        fontWeight: 700,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {round.title}
+                    </button>
+                  ))}
+                </div>
 
-            <div className="ko-mobile" style={{
-              border: "1px solid #1e3a5f",
-              borderRadius: 10,
-              background: "rgba(255,255,255,0.02)",
-              padding: 10,
-            }}>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(5,minmax(0,1fr))", gap: 6, marginBottom: 10 }}>
-                {MOBILE_KO_ROUNDS.map((round) => (
-                  <button
-                    key={round.key}
-                    onClick={() => setActiveMobileKoRound(round.key)}
-                    style={{
-                      border: activeMobileKoRound === round.key ? "1px solid #22c55e" : "1px solid #334155",
-                      background: activeMobileKoRound === round.key ? "rgba(34,197,94,0.14)" : "#0a1628",
-                      color: activeMobileKoRound === round.key ? "#bbf7d0" : "#94a3b8",
-                      fontSize: 11,
-                      padding: "8px 4px",
-                      borderRadius: 8,
-                      fontFamily: "monospace",
-                      fontWeight: 700,
-                      cursor: "pointer",
-                    }}
-                  >
-                    {round.title}
-                  </button>
-                ))}
+                <KnockoutBracketColumn
+                  title={activeMobileRoundData.title}
+                  matches={activeMobileRoundData.matches}
+                  onScore={onScore}
+                  topOffset={0}
+                  gap={8}
+                  cardMinWidth={0}
+                  showConnectors={false}
+                />
               </div>
-
-              <KnockoutBracketColumn
-                title={activeMobileRoundData.title}
-                matches={activeMobileRoundData.matches}
-                onScore={onScore}
-                topOffset={0}
-                gap={8}
-                cardMinWidth={0}
-                showConnectors={false}
-              />
-            </div>
+            )}
 
             <div style={{
               border: "1px solid #1e3a5f",
