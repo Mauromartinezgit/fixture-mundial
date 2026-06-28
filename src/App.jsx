@@ -462,17 +462,27 @@ function MatchCardBase({ match, onScore, side = "left" }) {
         const isHome = idx === 0;
         const score = isHome ? sc.h : sc.a;
         const isWinner = isHome ? homeWin : awayWin;
+        const countryCode = FLAG_CODE[team];
+        const flagUrl = countryCode ? `https://flagcdn.com/w80/${countryCode}.webp` : null;
+        
         return (
           <div key={idx} style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between" }}>
             <span style={{
               flex: 1,
-              color: isWinner ? "#92400e" : "#1f2937",
+              color: "#1f2937",
               fontWeight: isWinner ? 800 : 600,
               fontSize: 11,
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
               textAlign: side === "right" ? "right" : "left",
+              backgroundImage: flagUrl ? `url('${flagUrl}')` : "none",
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              backgroundRepeat: "no-repeat",
+              padding: "4px 8px",
+              borderRadius: 4,
+              textShadow: "0 1px 2px rgba(255,255,255,0.9)",
             }}>
               {team}
             </span>
@@ -562,14 +572,24 @@ function FinalMatchBase({ match, onScore }) {
         const isHome = idx === 0;
         const score = isHome ? sc.h : sc.a;
         const isWinner = isHome ? homeWin : awayWin;
+        const countryCode = FLAG_CODE[team];
+        const flagUrl = countryCode ? `https://flagcdn.com/w80/${countryCode}.webp` : null;
+        
         return (
           <div key={idx} style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "space-between" }}>
             <span style={{
               flex: 1,
-              color: isWinner ? "#92400e" : "#1f2937",
+              color: "#1f2937",
               fontWeight: isWinner ? 800 : 600,
               fontSize: 12,
               textAlign: "center",
+              backgroundImage: flagUrl ? `url('${flagUrl}')` : "none",
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              backgroundRepeat: "no-repeat",
+              padding: "6px 8px",
+              borderRadius: 4,
+              textShadow: "0 1px 2px rgba(255,255,255,0.9)",
             }}>
               {team}
             </span>
