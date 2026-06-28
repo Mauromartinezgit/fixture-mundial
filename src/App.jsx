@@ -972,13 +972,9 @@ export default function App() {
         * { box-sizing: border-box; }
         .ko-mobile { display: none; }
         .ko-desktop { display: block; }
-        .grupos-desktop { display: grid; }
-        .grupos-mobile { display: none; }
         @media (max-width: 900px) {
           .ko-mobile { display: block; }
           .ko-desktop { display: none; }
-          .grupos-desktop { display: none; }
-          .grupos-mobile { display: block; }
         }
       `}</style>
 
@@ -1033,24 +1029,11 @@ export default function App() {
         </div>
       </div>
 
-      {/* GRUPOS - DESKTOP */}
+      {/* GRUPOS - CAROUSEL */}
       <div style={{
         maxWidth:1400, margin:"0 auto",
         padding:"20px 14px 0",
-        display:"grid",
-        gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",
-        gap:16,
-      }} className="grupos-desktop">
-        {Object.keys(GROUPS_DATA).map((gKey) => (
-          <GroupCard key={gKey} gKey={gKey} scores={scores} onScore={onScore} />
-        ))}
-      </div>
-
-      {/* GRUPOS - MOBILE CAROUSEL */}
-      <div style={{
-        maxWidth:1400, margin:"0 auto",
-        padding:"20px 14px 0",
-      }} className="grupos-mobile">
+      }}>
         <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:16 }}>
           <button onClick={() => setActiveGroupMobile((p) => (p - 1 + Object.keys(GROUPS_DATA).length) % Object.keys(GROUPS_DATA).length)} style={{
             background:"#1e293b", border:"1px solid #475569",
