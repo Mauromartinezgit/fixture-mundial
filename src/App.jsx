@@ -413,7 +413,7 @@ function getKnockoutData(scores, firstAndSecond, bestThirds) {
   return { roundOf32, roundOf16, quarterFinals, semiFinals, final, champion };
 }
 
-function KnockoutMatchCard({ match, onScore }) {
+function KnockoutMatchCardBase({ match, onScore }) {
   const sc = match.score || { h: "", a: "" };
   const has = match.score && sc.h !== "" && sc.a !== "";
   const canEdit = !isPendingTeamName(match.homeTeam) && !isPendingTeamName(match.awayTeam);
@@ -472,6 +472,23 @@ function KnockoutMatchCard({ match, onScore }) {
     </div>
   );
 }
+
+const KnockoutMatchCard = memo(KnockoutMatchCardBase, (prevProps, nextProps) => {
+  const prev = prevProps.match;
+  const next = nextProps.match;
+
+  const prevScore = prev.score || { h: "", a: "" };
+  const nextScore = next.score || { h: "", a: "" };
+
+  return (
+    prev.scoreKey === next.scoreKey &&
+    prev.homeTeam === next.homeTeam &&
+    prev.awayTeam === next.awayTeam &&
+    prev.winner === next.winner &&
+    prevScore.h === nextScore.h &&
+    prevScore.a === nextScore.a
+  );
+});
 
 function BracketMatchSlot({ match, onScore, connector }) {
   const lineColor = "rgba(148,163,184,0.55)";
@@ -582,6 +599,14 @@ function ScoreInput({ value, onChange, disabled = false }) {
 }
 
 const ROUND_LABELS = ["Jornada 1", "Jornada 2", "Jornada 3"];
+
+const MOBILE_KO_ROUNDS = [
+  { key: "R32", title: "16avos" },
+  { key: "R16", title: "Octavos" },
+  { key: "QF", title: "Cuartos" },
+  { key: "SF", title: "Semifinales" },
+  { key: "F", title: "Final" },
+];
 
 function GroupCardBase({ gKey, scores, onScore }) {
   const { teams, matches } = GROUPS_DATA[gKey];
@@ -768,11 +793,16 @@ function loadScores() {
 export default function App() {
   const [scores, setScores] = useState(loadScores);
   const [useProvidedTable, setUseProvidedTable] = useState(true);
+  const [activeMobileKoRound, setActiveMobileKoRound] = useState("R32");
   const lastKnockoutMatchupsRef = useRef({});
 
-  // Guarda en localStorage cada vez que cambian los scores
+  // Guarda en localStorage con debounce para evitar bloquear la UI en cada tecla.
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(scores));
+    const saveId = setTimeout(() => {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(scores));
+    }, 180);
+
+    return () => clearTimeout(saveId);
   }, [scores]);
 
   const onScore = useCallback((key, side, val) => {
@@ -793,6 +823,21 @@ export default function App() {
   }, [scores, firstAndSecond, bestThirds]);
 
   const { roundOf32, roundOf16, quarterFinals, semiFinals, final, champion } = knockoutData;
+
+  const activeMobileRoundData = useMemo(() => {
+    switch (activeMobileKoRound) {
+      case "R16":
+        return { title: "Octavos", matches: roundOf16 };
+      case "QF":
+        return { title: "Cuartos", matches: quarterFinals };
+      case "SF":
+        return { title: "Semifinales", matches: semiFinals };
+      case "F":
+        return { title: "Final", matches: final };
+      default:
+        return { title: "16avos", matches: roundOf32 };
+    }
+  }, [activeMobileKoRound, roundOf32, roundOf16, quarterFinals, semiFinals, final]);
 
   useEffect(() => {
     const knockoutMatches = [...roundOf32, ...roundOf16, ...quarterFinals, ...semiFinals, ...final];
@@ -839,6 +884,12 @@ export default function App() {
         input[type=number] { -moz-appearance: textfield; }
         input:focus { border-color: #22c55e !important; box-shadow: 0 0 0 3px rgba(34,197,94,.25); }
         * { box-sizing: border-box; }
+        .ko-mobile { display: none; }
+        .ko-desktop { display: block; }
+        @media (max-width: 900px) {
+          .ko-mobile { display: block; }
+          .ko-desktop { display: none; }
+        }
       `}</style>
 
       {/* HEADER */}
@@ -1064,7 +1115,7 @@ export default function App() {
           </div>
 
           <div style={{ padding: 12 }}>
-            <div style={{
+            <div className="ko-desktop" style={{
               border: "1px solid #1e3a5f",
               borderRadius: 10,
               background: "rgba(255,255,255,0.02)",
@@ -1084,6 +1135,45 @@ export default function App() {
                 <KnockoutBracketColumn title="Semifinales" matches={semiFinals} onScore={onScore} topOffset={155} gap={170} showConnectors />
                 <KnockoutBracketColumn title="Final" matches={final} onScore={onScore} topOffset={255} gap={8} />
               </div>
+            </div>
+
+            <div className="ko-mobile" style={{
+              border: "1px solid #1e3a5f",
+              borderRadius: 10,
+              background: "rgba(255,255,255,0.02)",
+              padding: 10,
+            }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(5,minmax(0,1fr))", gap: 6, marginBottom: 10 }}>
+                {MOBILE_KO_ROUNDS.map((round) => (
+                  <button
+                    key={round.key}
+                    onClick={() => setActiveMobileKoRound(round.key)}
+                    style={{
+                      border: activeMobileKoRound === round.key ? "1px solid #22c55e" : "1px solid #334155",
+                      background: activeMobileKoRound === round.key ? "rgba(34,197,94,0.14)" : "#0a1628",
+                      color: activeMobileKoRound === round.key ? "#bbf7d0" : "#94a3b8",
+                      fontSize: 11,
+                      padding: "8px 4px",
+                      borderRadius: 8,
+                      fontFamily: "monospace",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {round.title}
+                  </button>
+                ))}
+              </div>
+
+              <KnockoutBracketColumn
+                title={activeMobileRoundData.title}
+                matches={activeMobileRoundData.matches}
+                onScore={onScore}
+                topOffset={0}
+                gap={8}
+                cardMinWidth={0}
+                showConnectors={false}
+              />
             </div>
 
             <div style={{
