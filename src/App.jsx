@@ -888,6 +888,7 @@ export default function App() {
   const [scores, setScores] = useState(loadScores);
   const [useProvidedTable, setUseProvidedTable] = useState(true);
   const [activeMobileKoRound, setActiveMobileKoRound] = useState("R32");
+  const [activeGroupMobile, setActiveGroupMobile] = useState(0);
   const [isMobileView, setIsMobileView] = useState(() => {
     if (typeof window === "undefined") return false;
     return window.innerWidth <= 900;
@@ -971,9 +972,13 @@ export default function App() {
         * { box-sizing: border-box; }
         .ko-mobile { display: none; }
         .ko-desktop { display: block; }
+        .grupos-desktop { display: grid; }
+        .grupos-mobile { display: none; }
         @media (max-width: 900px) {
           .ko-mobile { display: block; }
           .ko-desktop { display: none; }
+          .grupos-desktop { display: none; }
+          .grupos-mobile { display: block; }
         }
       `}</style>
 
@@ -1028,17 +1033,50 @@ export default function App() {
         </div>
       </div>
 
-      {/* GRUPOS */}
+      {/* GRUPOS - DESKTOP */}
       <div style={{
         maxWidth:1400, margin:"0 auto",
         padding:"20px 14px 0",
         display:"grid",
         gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",
         gap:16,
-      }}>
+      }} className="grupos-desktop">
         {Object.keys(GROUPS_DATA).map((gKey) => (
           <GroupCard key={gKey} gKey={gKey} scores={scores} onScore={onScore} />
         ))}
+      </div>
+
+      {/* GRUPOS - MOBILE CAROUSEL */}
+      <div style={{
+        maxWidth:1400, margin:"0 auto",
+        padding:"20px 14px 0",
+      }} className="grupos-mobile">
+        <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:16 }}>
+          <button onClick={() => setActiveGroupMobile((p) => (p - 1 + Object.keys(GROUPS_DATA).length) % Object.keys(GROUPS_DATA).length)} style={{
+            background:"#1e293b", border:"1px solid #475569",
+            color:"#cbd5e1", padding:"8px 12px", borderRadius:6,
+            cursor:"pointer", fontSize:16, fontFamily:"monospace", fontWeight:700,
+          }}>
+            ◀
+          </button>
+          <div style={{
+            flex:1, textAlign:"center",
+            fontSize:14, color:"#fde68a", fontFamily:"monospace",
+            fontWeight:700, textTransform:"uppercase", letterSpacing:1,
+          }}>
+            Grupo {Object.keys(GROUPS_DATA)[activeGroupMobile]}
+          </div>
+          <button onClick={() => setActiveGroupMobile((p) => (p + 1) % Object.keys(GROUPS_DATA).length)} style={{
+            background:"#1e293b", border:"1px solid #475569",
+            color:"#cbd5e1", padding:"8px 12px", borderRadius:6,
+            cursor:"pointer", fontSize:16, fontFamily:"monospace", fontWeight:700,
+          }}>
+            ▶
+          </button>
+        </div>
+        {Object.keys(GROUPS_DATA).length > 0 && (
+          <GroupCard key={Object.keys(GROUPS_DATA)[activeGroupMobile]} gKey={Object.keys(GROUPS_DATA)[activeGroupMobile]} scores={scores} onScore={onScore} />
+        )}
       </div>
 
       
