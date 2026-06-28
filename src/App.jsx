@@ -467,25 +467,33 @@ function MatchCardBase({ match, onScore, side = "left" }) {
         
         return (
           <div key={idx} style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between" }}>
-            <span style={{
+            <div style={{
               flex: 1,
-              color: "#1f2937",
-              fontWeight: isWinner ? 800 : 600,
-              fontSize: 11,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-              textAlign: side === "right" ? "right" : "left",
+              height: 28,
               backgroundImage: flagUrl ? `url('${flagUrl}')` : "none",
               backgroundSize: "cover",
               backgroundPosition: "center",
               backgroundRepeat: "no-repeat",
-              padding: "4px 8px",
               borderRadius: 4,
-              textShadow: "0 1px 2px rgba(255,255,255,0.9)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              position: "relative",
+              overflow: "hidden",
+              border: isWinner ? "2px solid #92400e" : "1px solid rgba(0,0,0,0.2)",
             }}>
-              {team}
-            </span>
+              {!flagUrl && (
+                <span style={{
+                  color: "#1f2937",
+                  fontWeight: isWinner ? 800 : 600,
+                  fontSize: 10,
+                  textAlign: "center",
+                  padding: "2px 4px",
+                }}>
+                  {team}
+                </span>
+              )}
+            </div>
             <ScoreInput value={score} onChange={(v) => onScore(match.scoreKey, isHome ? "h" : "a", v, match.signature)} disabled={!canEdit} theme="light" />
           </div>
         );
@@ -577,22 +585,33 @@ function FinalMatchBase({ match, onScore }) {
         
         return (
           <div key={idx} style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "space-between" }}>
-            <span style={{
+            <div style={{
               flex: 1,
-              color: "#1f2937",
-              fontWeight: isWinner ? 800 : 600,
-              fontSize: 12,
-              textAlign: "center",
+              height: 32,
               backgroundImage: flagUrl ? `url('${flagUrl}')` : "none",
               backgroundSize: "cover",
               backgroundPosition: "center",
               backgroundRepeat: "no-repeat",
-              padding: "6px 8px",
               borderRadius: 4,
-              textShadow: "0 1px 2px rgba(255,255,255,0.9)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              position: "relative",
+              overflow: "hidden",
+              border: isWinner ? "2px solid #92400e" : "1px solid rgba(0,0,0,0.2)",
             }}>
-              {team}
-            </span>
+              {!flagUrl && (
+                <span style={{
+                  color: "#1f2937",
+                  fontWeight: isWinner ? 800 : 600,
+                  fontSize: 11,
+                  textAlign: "center",
+                  padding: "2px 6px",
+                }}>
+                  {team}
+                </span>
+              )}
+            </div>
             <ScoreInput value={score} onChange={(v) => onScore(match.scoreKey, isHome ? "h" : "a", v, match.signature)} disabled={!canEdit} theme="light" />
           </div>
         );
