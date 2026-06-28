@@ -986,56 +986,10 @@ export default function App() {
           <div style={{ padding: "12px" }}>
             <div style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fit,minmax(270px,1fr))",
+              gridTemplateColumns: "repeat(auto-fit,minmax(270px,420px))",
+              justifyContent: "center",
               gap: 12,
             }}>
-              <div style={{
-                border: "1px solid #1e3a5f",
-                borderRadius: 10,
-                padding: 10,
-                background: "rgba(255,255,255,0.02)",
-              }}>
-                <div style={{
-                  fontSize: 12,
-                  color: "#94a3b8",
-                  fontFamily: "monospace",
-                  letterSpacing: 1,
-                  textTransform: "uppercase",
-                  marginBottom: 8,
-                  fontWeight: 700,
-                }}>
-                  1ros y 2dos de cada grupo
-                </div>
-
-                {firstAndSecond.map((team) => (
-                  <div key={`${team.group}-${team.pos}-${team.name}`} style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    padding: "6px 0",
-                    borderBottom: "1px solid rgba(148,163,184,0.12)",
-                  }}>
-                    <span style={{
-                      width: 20,
-                      textAlign: "center",
-                      color: "#86efac",
-                      fontWeight: 800,
-                      fontFamily: "monospace",
-                      fontSize: 12,
-                    }}>
-                      {team.group}{team.pos}
-                    </span>
-                    <Flag team={team.name} size={18} />
-                    <span style={{ color: "#ffffff", fontSize: 13, fontWeight: 600, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {team.name}
-                    </span>
-                    <span style={{ marginLeft: "auto", color: "#fde68a", fontFamily: "monospace", fontWeight: 800, fontSize: 12 }}>
-                      {team.pts} pts
-                    </span>
-                  </div>
-                ))}
-              </div>
-
               <div style={{
                 border: "1px solid #1e3a5f",
                 borderRadius: 10,
