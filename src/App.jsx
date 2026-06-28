@@ -144,14 +144,14 @@ function getQualifiedData(scores) {
 }
 
 const ROUND_32_SLOTS = [
-  { home: "A1", away: "T8" },
-  { home: "B1", away: "T7" },
-  { home: "C1", away: "T6" },
-  { home: "D1", away: "T5" },
-  { home: "E1", away: "T4" },
-  { home: "F1", away: "T3" },
-  { home: "G1", away: "T2" },
-  { home: "H1", away: "T1" },
+  { home: "A1", away: "A3" },
+  { home: "B1", away: "B3" },
+  { home: "C1", away: "C3" },
+  { home: "D1", away: "D3" },
+  { home: "E1", away: "E3" },
+  { home: "F1", away: "F3" },
+  { home: "G1", away: "G3" },
+  { home: "H1", away: "H3" },
   { home: "I1", away: "L2" },
   { home: "J1", away: "K2" },
   { home: "K1", away: "J2" },
@@ -161,6 +161,38 @@ const ROUND_32_SLOTS = [
   { home: "C2", away: "F2" },
   { home: "D2", away: "E2" },
 ];
+
+const WINNERS_VS_THIRDS_GROUPS = ["A", "B", "C", "D", "E", "F", "G", "H"];
+
+function assignBestThirdsToWinnerSlots(bestThirds) {
+  const winnerGroups = [...WINNERS_VS_THIRDS_GROUPS];
+  const assignment = {};
+  const used = new Set();
+
+  function backtrack(idx) {
+    if (idx === winnerGroups.length) return true;
+
+    const winnerGroup = winnerGroups[idx];
+    for (let i = 0; i < bestThirds.length; i += 1) {
+      if (used.has(i)) continue;
+
+      const third = bestThirds[i];
+      // Regla de oro: evitar cruce entre equipos del mismo grupo en 16avos.
+      if (third.group === winnerGroup) continue;
+
+      used.add(i);
+      assignment[winnerGroup] = third;
+      if (backtrack(idx + 1)) return true;
+      used.delete(i);
+      delete assignment[winnerGroup];
+    }
+
+    return false;
+  }
+
+  const ok = backtrack(0);
+  return ok ? assignment : null;
+}
 
 function parseLoadedScore(scores, key) {
   const sc = scores[key];
@@ -194,12 +226,28 @@ function createKnockoutMatch(label, scoreKey, homeTeam, awayTeam, scores) {
 }
 
 function getKnockoutData(scores, firstAndSecond, bestThirds) {
+  const thirdsByGroup = Object.fromEntries(bestThirds.map((t) => [t.group, t]));
+  const thirdAssignments = assignBestThirdsToWinnerSlots(bestThirds);
+
   const slotToTeam = {};
   firstAndSecond.forEach((team) => {
     slotToTeam[`${team.group}${team.pos}`] = team.name;
   });
+
+  if (thirdAssignments) {
+    WINNERS_VS_THIRDS_GROUPS.forEach((winnerGroup) => {
+      const thirdTeam = thirdAssignments[winnerGroup];
+      slotToTeam[`${winnerGroup}3`] = thirdTeam ? thirdTeam.name : "Por definir";
+    });
+  } else {
+    // Fallback defensivo: si no se encuentra una asignación válida, mantener terceros por su propio grupo.
+    WINNERS_VS_THIRDS_GROUPS.forEach((group) => {
+      slotToTeam[`${group}3`] = thirdsByGroup[group]?.name || "Por definir";
+    });
+  }
+
   bestThirds.forEach((team) => {
-    slotToTeam[`T${team.rank}`] = team.name;
+    slotToTeam[`${team.group}3`] = slotToTeam[`${team.group}3`] || team.name;
   });
 
   const roundOf32 = ROUND_32_SLOTS.map((slot, idx) =>
