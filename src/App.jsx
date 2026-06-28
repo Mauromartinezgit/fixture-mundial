@@ -301,14 +301,27 @@ function assignBestThirdsToWinnerSlots(bestThirds) {
   return assignment;
 }
 
-function parseLoadedScore(scores, key, expectedSignature) {
+function parseLoadedKnockoutScore(scores, key, expectedSignature) {
   const sc = scores[key];
-  if (!sc || sc.h === "" || sc.a === "") return null;
-  if (expectedSignature && sc.sig && sc.sig !== expectedSignature) return null;
-  const h = parseInt(sc.h, 10);
-  const a = parseInt(sc.a, 10);
-  if (isNaN(h) || isNaN(a)) return null;
-  return { h, a };
+  if (!sc) return { raw: null, parsed: null };
+  if (expectedSignature && sc.sig && sc.sig !== expectedSignature) return { raw: null, parsed: null };
+
+  const hasHome = sc.h !== "";
+  const hasAway = sc.a !== "";
+
+  if (!hasHome && !hasAway) return { raw: null, parsed: null };
+
+  const homeValue = hasHome ? parseInt(sc.h, 10) : 0;
+  const awayValue = hasAway ? parseInt(sc.a, 10) : 0;
+
+  if ((hasHome && isNaN(homeValue)) || (hasAway && isNaN(awayValue))) {
+    return { raw: null, parsed: null };
+  }
+
+  return {
+    raw: { h: sc.h, a: sc.a },
+    parsed: { h: homeValue, a: awayValue },
+  };
 }
 
 function isPendingTeamName(name) {
@@ -322,15 +335,16 @@ function getMatchWinner(score, homeTeam, awayTeam) {
 
 function createKnockoutMatch(label, scoreKey, homeTeam, awayTeam, scores) {
   const signature = `${homeTeam || "Por definir"}|${awayTeam || "Por definir"}`;
-  const score = parseLoadedScore(scores, scoreKey, signature);
-  const winner = getMatchWinner(score, homeTeam, awayTeam);
+  const loaded = parseLoadedKnockoutScore(scores, scoreKey, signature);
+  const winner = getMatchWinner(loaded.parsed, homeTeam, awayTeam);
   return {
     label,
     scoreKey,
     homeTeam: homeTeam || "Por definir",
     awayTeam: awayTeam || "Por definir",
     signature,
-    score,
+    score: loaded.raw,
+    parsedScore: loaded.parsed,
     winner,
   };
 }
@@ -418,11 +432,11 @@ function getKnockoutData(scores, firstAndSecond, bestThirds) {
 
 function KnockoutMatchCardBase({ match, onScore }) {
   const sc = match.score || { h: "", a: "" };
-  const has = match.score && sc.h !== "" && sc.a !== "";
+  const has = Boolean(match.parsedScore);
   const canEdit = !isPendingTeamName(match.homeTeam) && !isPendingTeamName(match.awayTeam);
-  const homeWin = has && sc.h > sc.a;
-  const awayWin = has && sc.a > sc.h;
-  const draw = has && sc.h === sc.a;
+  const homeWin = has && match.parsedScore.h > match.parsedScore.a;
+  const awayWin = has && match.parsedScore.a > match.parsedScore.h;
+  const draw = has && match.parsedScore.h === match.parsedScore.a;
 
   return (
     <div style={{
@@ -464,6 +478,12 @@ function KnockoutMatchCardBase({ match, onScore }) {
       {draw && (
         <div style={{ marginTop: 8, color: "#fca5a5", fontSize: 11, fontFamily: "monospace" }}>
           En eliminación directa no puede haber empate.
+        </div>
+      )}
+
+      {has && (!sc.h || !sc.a) && (
+        <div style={{ marginTop: 8, color: "#cbd5e1", fontSize: 11, fontFamily: "monospace" }}>
+          Resultado parcial en avance.
         </div>
       )}
 
