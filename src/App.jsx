@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback, memo } from "react";
 
 const FLAG_CODE = {
   "México":"mx","Sudáfrica":"za","Corea del Sur":"kr","Rep. Checa":"cz",
@@ -22,6 +22,8 @@ function Flag({ team, size = 22 }) {
     <img
       src={`https://flagcdn.com/w40/${code}.png`}
       alt={team}
+      loading="lazy"
+      decoding="async"
       style={{ width: size, height: size * 0.67, objectFit: "cover", borderRadius: 3, flexShrink: 0, verticalAlign: "middle", boxShadow: "0 1px 3px rgba(0,0,0,0.4)" }}
     />
   );
@@ -581,7 +583,7 @@ function ScoreInput({ value, onChange, disabled = false }) {
 
 const ROUND_LABELS = ["Jornada 1", "Jornada 2", "Jornada 3"];
 
-function GroupCard({ gKey, scores, onScore }) {
+function GroupCardBase({ gKey, scores, onScore }) {
   const { teams, matches } = GROUPS_DATA[gKey];
   const standings = calcStandings(gKey, scores);
   const anyPlayed = matches.some((_, i) => { const s = scores[`${gKey}-${i}`]; return s && s.h !== "" && s.a !== ""; });
@@ -739,6 +741,22 @@ function GroupCard({ gKey, scores, onScore }) {
   );
 }
 
+function areScoresEqualForGroup(gKey, prevScores, nextScores) {
+  const totalMatches = GROUPS_DATA[gKey].matches.length;
+  for (let idx = 0; idx < totalMatches; idx += 1) {
+    const key = `${gKey}-${idx}`;
+    const prev = prevScores[key] || { h: "", a: "" };
+    const next = nextScores[key] || { h: "", a: "" };
+    if (prev.h !== next.h || prev.a !== next.a) return false;
+  }
+  return true;
+}
+
+const GroupCard = memo(GroupCardBase, (prevProps, nextProps) => {
+  if (prevProps.gKey !== nextProps.gKey) return false;
+  return areScoresEqualForGroup(prevProps.gKey, prevProps.scores, nextProps.scores);
+});
+
 const STORAGE_KEY = "mundial2026-scores";
 
 function loadScores() {
@@ -757,16 +775,24 @@ export default function App() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(scores));
   }, [scores]);
 
-  const onScore = (key, side, val) => {
+  const onScore = useCallback((key, side, val) => {
     setUseProvidedTable(false);
     setScores((p) => ({ ...p, [key]: { ...(p[key] || { h: "", a: "" }), [side]: val } }));
-  };
+  }, []);
 
-  const played = countPlayedGroupMatches(scores);
-  const { firstAndSecond, bestThirds } = useProvidedTable
-    ? getQualifiedDataFromProvidedTable()
-    : getQualifiedData(scores);
-  const { roundOf32, roundOf16, quarterFinals, semiFinals, final, champion } = getKnockoutData(scores, firstAndSecond, bestThirds);
+  const played = useMemo(() => countPlayedGroupMatches(scores), [scores]);
+
+  const qualifiedData = useMemo(() => {
+    return useProvidedTable ? getQualifiedDataFromProvidedTable() : getQualifiedData(scores);
+  }, [useProvidedTable, scores]);
+
+  const { firstAndSecond, bestThirds } = qualifiedData;
+
+  const knockoutData = useMemo(() => {
+    return getKnockoutData(scores, firstAndSecond, bestThirds);
+  }, [scores, firstAndSecond, bestThirds]);
+
+  const { roundOf32, roundOf16, quarterFinals, semiFinals, final, champion } = knockoutData;
 
   useEffect(() => {
     const knockoutMatches = [...roundOf32, ...roundOf16, ...quarterFinals, ...semiFinals, ...final];
