@@ -121,6 +121,241 @@ function calcStandings(gKey, scores) {
     .sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf);
 }
 
+function getQualifiedData(scores) {
+  const groupKeys = Object.keys(GROUPS_DATA);
+  const firstAndSecond = [];
+  const thirdPlaces = [];
+
+  groupKeys.forEach((gKey) => {
+    const table = calcStandings(gKey, scores);
+    firstAndSecond.push(
+      { group: gKey, pos: 1, ...table[0] },
+      { group: gKey, pos: 2, ...table[1] }
+    );
+    thirdPlaces.push({ group: gKey, pos: 3, ...table[2] });
+  });
+
+  const bestThirds = [...thirdPlaces]
+    .sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf)
+    .slice(0, 8)
+    .map((t, idx) => ({ ...t, rank: idx + 1 }));
+
+  return { firstAndSecond, bestThirds, thirdPlaces };
+}
+
+const ROUND_32_SLOTS = [
+  { home: "A1", away: "T8" },
+  { home: "B1", away: "T7" },
+  { home: "C1", away: "T6" },
+  { home: "D1", away: "T5" },
+  { home: "E1", away: "T4" },
+  { home: "F1", away: "T3" },
+  { home: "G1", away: "T2" },
+  { home: "H1", away: "T1" },
+  { home: "I1", away: "L2" },
+  { home: "J1", away: "K2" },
+  { home: "K1", away: "J2" },
+  { home: "L1", away: "I2" },
+  { home: "A2", away: "H2" },
+  { home: "B2", away: "G2" },
+  { home: "C2", away: "F2" },
+  { home: "D2", away: "E2" },
+];
+
+function parseLoadedScore(scores, key) {
+  const sc = scores[key];
+  if (!sc || sc.h === "" || sc.a === "") return null;
+  const h = parseInt(sc.h, 10);
+  const a = parseInt(sc.a, 10);
+  if (isNaN(h) || isNaN(a)) return null;
+  return { h, a };
+}
+
+function isPendingTeamName(name) {
+  return !name || name.startsWith("Ganador ") || name === "Por definir";
+}
+
+function getMatchWinner(score, homeTeam, awayTeam) {
+  if (!score || isPendingTeamName(homeTeam) || isPendingTeamName(awayTeam) || score.h === score.a) return null;
+  return score.h > score.a ? homeTeam : awayTeam;
+}
+
+function createKnockoutMatch(label, scoreKey, homeTeam, awayTeam, scores) {
+  const score = parseLoadedScore(scores, scoreKey);
+  const winner = getMatchWinner(score, homeTeam, awayTeam);
+  return {
+    label,
+    scoreKey,
+    homeTeam: homeTeam || "Por definir",
+    awayTeam: awayTeam || "Por definir",
+    score,
+    winner,
+  };
+}
+
+function getKnockoutData(scores, firstAndSecond, bestThirds) {
+  const slotToTeam = {};
+  firstAndSecond.forEach((team) => {
+    slotToTeam[`${team.group}${team.pos}`] = team.name;
+  });
+  bestThirds.forEach((team) => {
+    slotToTeam[`T${team.rank}`] = team.name;
+  });
+
+  const roundOf32 = ROUND_32_SLOTS.map((slot, idx) =>
+    createKnockoutMatch(
+      `16avos ${idx + 1}`,
+      `KO-R32-${idx}`,
+      slotToTeam[slot.home],
+      slotToTeam[slot.away],
+      scores
+    )
+  );
+
+  const roundOf16 = Array.from({ length: 8 }, (_, idx) => {
+    const m1 = roundOf32[idx * 2];
+    const m2 = roundOf32[idx * 2 + 1];
+    return createKnockoutMatch(
+      `Octavos ${idx + 1}`,
+      `KO-R16-${idx}`,
+      m1.winner || `Ganador ${m1.label}`,
+      m2.winner || `Ganador ${m2.label}`,
+      scores
+    );
+  });
+
+  const quarterFinals = Array.from({ length: 4 }, (_, idx) => {
+    const m1 = roundOf16[idx * 2];
+    const m2 = roundOf16[idx * 2 + 1];
+    return createKnockoutMatch(
+      `Cuartos ${idx + 1}`,
+      `KO-QF-${idx}`,
+      m1.winner || `Ganador ${m1.label}`,
+      m2.winner || `Ganador ${m2.label}`,
+      scores
+    );
+  });
+
+  const semiFinals = Array.from({ length: 2 }, (_, idx) => {
+    const m1 = quarterFinals[idx * 2];
+    const m2 = quarterFinals[idx * 2 + 1];
+    return createKnockoutMatch(
+      `Semifinal ${idx + 1}`,
+      `KO-SF-${idx}`,
+      m1.winner || `Ganador ${m1.label}`,
+      m2.winner || `Ganador ${m2.label}`,
+      scores
+    );
+  });
+
+  const final = [
+    createKnockoutMatch(
+      "Final",
+      "KO-FINAL-0",
+      semiFinals[0].winner || `Ganador ${semiFinals[0].label}`,
+      semiFinals[1].winner || `Ganador ${semiFinals[1].label}`,
+      scores
+    ),
+  ];
+
+  const champion = final[0].winner;
+
+  return { roundOf32, roundOf16, quarterFinals, semiFinals, final, champion };
+}
+
+function KnockoutMatchCard({ match, onScore }) {
+  const sc = match.score || { h: "", a: "" };
+  const has = match.score && sc.h !== "" && sc.a !== "";
+  const homeWin = has && sc.h > sc.a;
+  const awayWin = has && sc.a > sc.h;
+  const draw = has && sc.h === sc.a;
+
+  return (
+    <div style={{
+      background: "rgba(255,255,255,0.03)",
+      border: "1px solid rgba(148,163,184,0.18)",
+      borderRadius: 10,
+      padding: 10,
+    }}>
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        marginBottom: 8,
+      }}>
+        <span style={{ color: "#fde68a", fontFamily: "monospace", fontWeight: 800, fontSize: 12 }}>{match.label}</span>
+        {match.winner && <span style={{ color: "#86efac", fontFamily: "monospace", fontWeight: 700, fontSize: 11 }}>Clasifica</span>}
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8, alignItems: "center", marginBottom: 6 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+          <Flag team={isPendingTeamName(match.homeTeam) ? null : match.homeTeam} size={18} />
+          <span style={{ color: homeWin ? "#fde68a" : "#ffffff", fontWeight: homeWin ? 800 : 600, fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            {match.homeTeam}
+          </span>
+        </div>
+        <ScoreInput value={sc.h} onChange={(v) => onScore(match.scoreKey, "h", v)} />
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8, alignItems: "center" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+          <Flag team={isPendingTeamName(match.awayTeam) ? null : match.awayTeam} size={18} />
+          <span style={{ color: awayWin ? "#fde68a" : "#ffffff", fontWeight: awayWin ? 800 : 600, fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            {match.awayTeam}
+          </span>
+        </div>
+        <ScoreInput value={sc.a} onChange={(v) => onScore(match.scoreKey, "a", v)} />
+      </div>
+
+      {draw && (
+        <div style={{ marginTop: 8, color: "#fca5a5", fontSize: 11, fontFamily: "monospace" }}>
+          En eliminación directa no puede haber empate.
+        </div>
+      )}
+    </div>
+  );
+}
+
+function KnockoutRoundSection({ title, matches, onScore }) {
+  return (
+    <div style={{
+      border: "1px solid #1e3a5f",
+      borderRadius: 10,
+      padding: 10,
+      background: "rgba(255,255,255,0.02)",
+    }}>
+      <div style={{
+        fontSize: 12,
+        color: "#94a3b8",
+        fontFamily: "monospace",
+        letterSpacing: 1,
+        textTransform: "uppercase",
+        marginBottom: 8,
+        fontWeight: 700,
+      }}>
+        {title}
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(250px,1fr))", gap: 8 }}>
+        {matches.map((match) => (
+          <KnockoutMatchCard key={match.scoreKey} match={match} onScore={onScore} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function countPlayedGroupMatches(scores) {
+  let count = 0;
+  Object.keys(GROUPS_DATA).forEach((gKey) => {
+    GROUPS_DATA[gKey].matches.forEach((_, idx) => {
+      const sc = scores[`${gKey}-${idx}`];
+      if (sc && sc.h !== "" && sc.a !== "") count += 1;
+    });
+  });
+  return count;
+}
+
 function ScoreInput({ value, onChange }) {
   const handleChange = (e) => {
     const v = e.target.value;
@@ -330,7 +565,9 @@ export default function App() {
   const onScore = (key, side, val) =>
     setScores((p) => ({ ...p, [key]: { ...(p[key] || { h: "", a: "" }), [side]: val } }));
 
-  const played = Object.values(scores).filter((v) => v.h !== "" && v.a !== "").length;
+  const played = countPlayedGroupMatches(scores);
+  const { firstAndSecond, bestThirds } = getQualifiedData(scores);
+  const { roundOf32, roundOf16, quarterFinals, semiFinals, final, champion } = getKnockoutData(scores, firstAndSecond, bestThirds);
 
   const handleReset = () => {
     if (confirm("¿Resetear todos los resultados?")) {
@@ -418,6 +655,190 @@ export default function App() {
         <span style={{ fontSize:12, color:"#64748b", fontFamily:"monospace" }}>
           🟢 Top 2 de cada grupo clasifican directamente · ⭐ Los 8 mejores terceros también avanzan
         </span>
+      </div>
+
+      {/* RESUMEN DE CLASIFICADOS */}
+      <div style={{ maxWidth: 1400, margin: "18px auto 0", padding: "0 14px" }}>
+        <div style={{
+          background: "linear-gradient(160deg,#0d1f3c 0%,#081020 100%)",
+          borderRadius: 14,
+          border: "1px solid #1e3a5f",
+          boxShadow: "0 6px 24px rgba(0,0,0,0.6)",
+          overflow: "hidden",
+        }}>
+          <div style={{
+            background: "linear-gradient(90deg,#14532d,#166534)",
+            padding: "10px 16px",
+            fontSize: 18,
+            fontWeight: 800,
+            color: "#fde68a",
+            letterSpacing: 1,
+            fontFamily: "Georgia,serif",
+          }}>
+            Clasificados de Fase de Grupos
+          </div>
+
+          <div style={{ padding: "12px" }}>
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit,minmax(270px,1fr))",
+              gap: 12,
+            }}>
+              <div style={{
+                border: "1px solid #1e3a5f",
+                borderRadius: 10,
+                padding: 10,
+                background: "rgba(255,255,255,0.02)",
+              }}>
+                <div style={{
+                  fontSize: 12,
+                  color: "#94a3b8",
+                  fontFamily: "monospace",
+                  letterSpacing: 1,
+                  textTransform: "uppercase",
+                  marginBottom: 8,
+                  fontWeight: 700,
+                }}>
+                  1ros y 2dos de cada grupo
+                </div>
+
+                {firstAndSecond.map((team) => (
+                  <div key={`${team.group}-${team.pos}-${team.name}`} style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "6px 0",
+                    borderBottom: "1px solid rgba(148,163,184,0.12)",
+                  }}>
+                    <span style={{
+                      width: 20,
+                      textAlign: "center",
+                      color: "#86efac",
+                      fontWeight: 800,
+                      fontFamily: "monospace",
+                      fontSize: 12,
+                    }}>
+                      {team.group}{team.pos}
+                    </span>
+                    <Flag team={team.name} size={18} />
+                    <span style={{ color: "#ffffff", fontSize: 13, fontWeight: 600, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {team.name}
+                    </span>
+                    <span style={{ marginLeft: "auto", color: "#fde68a", fontFamily: "monospace", fontWeight: 800, fontSize: 12 }}>
+                      {team.pts} pts
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{
+                border: "1px solid #1e3a5f",
+                borderRadius: 10,
+                padding: 10,
+                background: "rgba(255,255,255,0.02)",
+              }}>
+                <div style={{
+                  fontSize: 12,
+                  color: "#94a3b8",
+                  fontFamily: "monospace",
+                  letterSpacing: 1,
+                  textTransform: "uppercase",
+                  marginBottom: 8,
+                  fontWeight: 700,
+                }}>
+                  Ranking mejores terceros (Top 8)
+                </div>
+
+                {bestThirds.map((team) => (
+                  <div key={`third-${team.group}-${team.name}`} style={{
+                    display: "grid",
+                    gridTemplateColumns: "24px 1fr 34px 34px 40px",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "6px 0",
+                    borderBottom: "1px solid rgba(148,163,184,0.12)",
+                  }}>
+                    <span style={{ color: "#86efac", fontWeight: 800, fontFamily: "monospace", fontSize: 12 }}>{team.rank}</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+                      <Flag team={team.name} size={18} />
+                      <span style={{ color: "#ffffff", fontSize: 13, fontWeight: 600, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {team.group}3 {team.name}
+                      </span>
+                    </div>
+                    <span style={{ color: "#fde68a", fontFamily: "monospace", fontWeight: 800, fontSize: 12, textAlign: "center" }}>{team.pts}</span>
+                    <span style={{ color: "#e2e8f0", fontFamily: "monospace", fontWeight: 700, fontSize: 12, textAlign: "center" }}>{team.gf}</span>
+                    <span style={{
+                      color: team.gd > 0 ? "#4ade80" : team.gd < 0 ? "#f87171" : "#94a3b8",
+                      fontFamily: "monospace",
+                      fontWeight: 700,
+                      fontSize: 12,
+                      textAlign: "center",
+                    }}>
+                      {team.gd > 0 ? `+${team.gd}` : team.gd}
+                    </span>
+                  </div>
+                ))}
+
+                <div style={{ marginTop: 8, color: "#94a3b8", fontFamily: "monospace", fontSize: 11 }}>
+                  Orden: Pts, DG, GF.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* FASE ELIMINATORIA */}
+      <div style={{ maxWidth: 1400, margin: "18px auto 0", padding: "0 14px" }}>
+        <div style={{
+          background: "linear-gradient(160deg,#0d1f3c 0%,#081020 100%)",
+          borderRadius: 14,
+          border: "1px solid #1e3a5f",
+          boxShadow: "0 6px 24px rgba(0,0,0,0.6)",
+          overflow: "hidden",
+        }}>
+          <div style={{
+            background: "linear-gradient(90deg,#7f1d1d,#991b1b)",
+            padding: "10px 16px",
+            fontSize: 18,
+            fontWeight: 800,
+            color: "#fde68a",
+            letterSpacing: 1,
+            fontFamily: "Georgia,serif",
+          }}>
+            Fase Eliminatoria
+          </div>
+
+          <div style={{ padding: 12, display: "grid", gap: 12 }}>
+            <KnockoutRoundSection title="16avos de final" matches={roundOf32} onScore={onScore} />
+            <KnockoutRoundSection title="Octavos de final" matches={roundOf16} onScore={onScore} />
+            <KnockoutRoundSection title="Cuartos de final" matches={quarterFinals} onScore={onScore} />
+            <KnockoutRoundSection title="Semifinales" matches={semiFinals} onScore={onScore} />
+            <KnockoutRoundSection title="Final" matches={final} onScore={onScore} />
+
+            <div style={{
+              border: "1px solid #1e3a5f",
+              borderRadius: 10,
+              padding: "12px 14px",
+              background: champion ? "linear-gradient(90deg,rgba(250,204,21,0.12),rgba(34,197,94,0.12))" : "rgba(255,255,255,0.02)",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+            }}>
+              <span style={{ fontSize: 13, color: "#94a3b8", fontFamily: "monospace", textTransform: "uppercase", letterSpacing: 1 }}>
+                Campeón proyectado
+              </span>
+              {champion ? (
+                <>
+                  <Flag team={champion} size={20} />
+                  <span style={{ color: "#fde68a", fontWeight: 900, fontSize: 16 }}>{champion}</span>
+                </>
+              ) : (
+                <span style={{ color: "#cbd5e1", fontSize: 14, fontWeight: 600 }}>Completa resultados hasta la final</span>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
