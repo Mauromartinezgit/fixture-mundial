@@ -430,79 +430,162 @@ function getKnockoutData(scores, firstAndSecond, bestThirds) {
   return { roundOf32, roundOf16, quarterFinals, semiFinals, final, champion };
 }
 
-function KnockoutMatchCardBase({ match, onScore }) {
+// ============================================
+// COMPONENTES PROFESIONALES DEL BRACKET
+// ============================================
+
+// MatchCard - Tarjeta de partido minimalista
+function MatchCardBase({ match, onScore, side = "left" }) {
   const sc = match.score || { h: "", a: "" };
   const has = Boolean(match.parsedScore);
   const canEdit = !isPendingTeamName(match.homeTeam) && !isPendingTeamName(match.awayTeam);
   const homeWin = has && match.parsedScore.h > match.parsedScore.a;
   const awayWin = has && match.parsedScore.a > match.parsedScore.h;
-  const draw = has && match.parsedScore.h === match.parsedScore.a;
 
   return (
     <div style={{
-      background: "rgba(255,255,255,0.03)",
-      border: "1px solid rgba(148,163,184,0.18)",
-      borderRadius: 10,
-      padding: 10,
+      background: "linear-gradient(180deg,#fffdf6 0%,#f7f0db 100%)",
+      border: "1px solid rgba(120,113,108,0.18)",
+      borderRadius: 8,
+      padding: 6,
+      boxShadow: "0 1px 0 rgba(255,255,255,0.92) inset, 0 4px 10px rgba(15,23,42,0.06)",
+      minWidth: 200,
+      display: "flex",
+      flexDirection: "column",
+      gap: 4,
     }}>
-      <div style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        marginBottom: 8,
-      }}>
-        <span style={{ color: "#fde68a", fontFamily: "monospace", fontWeight: 800, fontSize: 12 }}>{match.label}</span>
-        {match.winner && <span style={{ color: "#86efac", fontFamily: "monospace", fontWeight: 700, fontSize: 11 }}>Clasifica</span>}
+      <div style={{ fontSize: 10, color: "#8a4b12", fontFamily: "monospace", fontWeight: 700, letterSpacing: 0.5 }}>
+        {match.label}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8, alignItems: "center", marginBottom: 6 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-          <Flag team={isPendingTeamName(match.homeTeam) ? null : match.homeTeam} size={18} />
-          <span style={{ color: homeWin ? "#fde68a" : "#ffffff", fontWeight: homeWin ? 800 : 600, fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-            {match.homeTeam}
-          </span>
-        </div>
-        <ScoreInput value={sc.h} onChange={(v) => onScore(match.scoreKey, "h", v, match.signature)} disabled={!canEdit} />
-      </div>
-
-      <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8, alignItems: "center" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-          <Flag team={isPendingTeamName(match.awayTeam) ? null : match.awayTeam} size={18} />
-          <span style={{ color: awayWin ? "#fde68a" : "#ffffff", fontWeight: awayWin ? 800 : 600, fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-            {match.awayTeam}
-          </span>
-        </div>
-        <ScoreInput value={sc.a} onChange={(v) => onScore(match.scoreKey, "a", v, match.signature)} disabled={!canEdit} />
-      </div>
-
-      {draw && (
-        <div style={{ marginTop: 8, color: "#fca5a5", fontSize: 11, fontFamily: "monospace" }}>
-          En eliminación directa no puede haber empate.
-        </div>
-      )}
-
-      {has && (!sc.h || !sc.a) && (
-        <div style={{ marginTop: 8, color: "#cbd5e1", fontSize: 11, fontFamily: "monospace" }}>
-          Resultado parcial en avance.
-        </div>
-      )}
-
-      {!canEdit && (
-        <div style={{ marginTop: 8, color: "#94a3b8", fontSize: 11, fontFamily: "monospace" }}>
-          Se habilita cuando estén definidos ambos equipos.
-        </div>
-      )}
+      {[match.homeTeam, match.awayTeam].map((team, idx) => {
+        const isHome = idx === 0;
+        const score = isHome ? sc.h : sc.a;
+        const isWinner = isHome ? homeWin : awayWin;
+        return (
+          <div key={idx} style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between" }}>
+            <span style={{
+              flex: 1,
+              color: isWinner ? "#92400e" : "#1f2937",
+              fontWeight: isWinner ? 800 : 600,
+              fontSize: 11,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              textAlign: side === "right" ? "right" : "left",
+            }}>
+              {team}
+            </span>
+            <ScoreInput value={score} onChange={(v) => onScore(match.scoreKey, isHome ? "h" : "a", v, match.signature)} disabled={!canEdit} theme="light" />
+          </div>
+        );
+      })}
     </div>
   );
 }
 
-const KnockoutMatchCard = memo(KnockoutMatchCardBase, (prevProps, nextProps) => {
+const MatchCard = memo(MatchCardBase, (prevProps, nextProps) => {
   const prev = prevProps.match;
   const next = nextProps.match;
-
   const prevScore = prev.score || { h: "", a: "" };
   const nextScore = next.score || { h: "", a: "" };
+  return (
+    prev.scoreKey === next.scoreKey &&
+    prev.homeTeam === next.homeTeam &&
+    prev.awayTeam === next.awayTeam &&
+    prev.winner === next.winner &&
+    prevScore.h === nextScore.h &&
+    prevScore.a === nextScore.a &&
+    prevProps.side === nextProps.side
+  );
+});
 
+// RoundColumn - Columna de ronda
+function RoundColumnBase({ title, matches, onScore, side = "left" }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+      <div style={{
+        fontSize: 11,
+        color: "#7c2d12",
+        fontFamily: "monospace",
+        fontWeight: 700,
+        letterSpacing: 1,
+        textTransform: "uppercase",
+        textAlign: side === "right" ? "right" : "left",
+        paddingBottom: 8,
+        borderBottom: "1px solid rgba(120,113,108,0.15)",
+      }}>
+        {title}
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 32, justifyContent: "center" }}>
+        {matches.map((match) => (
+          <MatchCard key={match.scoreKey} match={match} onScore={onScore} side={side} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const RoundColumn = memo(RoundColumnBase, (prevProps, nextProps) => {
+  if (prevProps.title !== nextProps.title || prevProps.side !== nextProps.side || prevProps.matches.length !== nextProps.matches.length) return false;
+  return prevProps.matches.every((m, i) => {
+    const next = nextProps.matches[i];
+    return m.scoreKey === next.scoreKey && m.winner === next.winner && (m.score || {}).h === (next.score || {}).h && (m.score || {}).a === (next.score || {}).a;
+  });
+});
+
+// FinalMatch - Final centrada
+function FinalMatchBase({ match, onScore }) {
+  const sc = match.score || { h: "", a: "" };
+  const has = Boolean(match.parsedScore);
+  const canEdit = !isPendingTeamName(match.homeTeam) && !isPendingTeamName(match.awayTeam);
+  const homeWin = has && match.parsedScore.h > match.parsedScore.a;
+  const awayWin = has && match.parsedScore.a > match.parsedScore.h;
+
+  return (
+    <div style={{
+      background: "linear-gradient(180deg,#fffdf6 0%,#f7f0db 100%)",
+      border: "2px solid rgba(120,113,108,0.25)",
+      borderRadius: 12,
+      padding: 8,
+      boxShadow: "0 2px 0 rgba(255,255,255,0.92) inset, 0 6px 14px rgba(15,23,42,0.08)",
+      minWidth: 220,
+      display: "flex",
+      flexDirection: "column",
+      gap: 5,
+    }}>
+      <div style={{ fontSize: 11, color: "#8a4b12", fontFamily: "monospace", fontWeight: 800, letterSpacing: 0.8, textAlign: "center", textTransform: "uppercase" }}>
+        {match.label}
+      </div>
+
+      {[match.homeTeam, match.awayTeam].map((team, idx) => {
+        const isHome = idx === 0;
+        const score = isHome ? sc.h : sc.a;
+        const isWinner = isHome ? homeWin : awayWin;
+        return (
+          <div key={idx} style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "space-between" }}>
+            <span style={{
+              flex: 1,
+              color: isWinner ? "#92400e" : "#1f2937",
+              fontWeight: isWinner ? 800 : 600,
+              fontSize: 12,
+              textAlign: "center",
+            }}>
+              {team}
+            </span>
+            <ScoreInput value={score} onChange={(v) => onScore(match.scoreKey, isHome ? "h" : "a", v, match.signature)} disabled={!canEdit} theme="light" />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+const FinalMatch = memo(FinalMatchBase, (prevProps, nextProps) => {
+  const prev = prevProps.match;
+  const next = nextProps.match;
+  const prevScore = prev.score || { h: "", a: "" };
+  const nextScore = next.score || { h: "", a: "" };
   return (
     prev.scoreKey === next.scoreKey &&
     prev.homeTeam === next.homeTeam &&
@@ -513,62 +596,32 @@ const KnockoutMatchCard = memo(KnockoutMatchCardBase, (prevProps, nextProps) => 
   );
 });
 
-function BracketMatchSlotBase({ match, onScore, connector }) {
-  const lineColor = "rgba(148,163,184,0.55)";
-
+// Trophy - Copa central
+function Trophy() {
   return (
-    <div style={{ position: "relative" }}>
-      <KnockoutMatchCard match={match} onScore={onScore} />
-
-      {connector && (
-        <>
-          <div style={{
-            position: "absolute",
-            right: -18,
-            top: "50%",
-            width: 18,
-            height: 2,
-            background: lineColor,
-            transform: "translateY(-50%)",
-          }} />
-          <div style={{
-            position: "absolute",
-            right: -18,
-            width: 2,
-            height: 54,
-            background: lineColor,
-            top: connector === "top" ? "50%" : undefined,
-            bottom: connector === "bottom" ? "50%" : undefined,
-          }} />
-        </>
-      )}
+    <div style={{
+      width: 120,
+      height: 120,
+      borderRadius: "50%",
+      background: "radial-gradient(circle at 35% 30%, #fff6cc 0%, #f0c94d 34%, #c28d0c 100%)",
+      boxShadow: "0 18px 40px rgba(194,141,12,0.35), 0 0 0 10px rgba(255,255,255,0.45)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      fontSize: 56,
+    }}>
+      🏆
     </div>
   );
 }
 
-const BracketMatchSlot = memo(BracketMatchSlotBase, (prevProps, nextProps) => {
-  const prev = prevProps.match;
-  const next = nextProps.match;
-  const prevScore = prev.score || { h: "", a: "" };
-  const nextScore = next.score || { h: "", a: "" };
-
+// KnockoutBracketColumn - Para compatibilidad con mobile
+function KnockoutBracketColumn({ title, matches, onScore, cardMinWidth = 0 }) {
   return (
-    prev.scoreKey === next.scoreKey &&
-    prev.homeTeam === next.homeTeam &&
-    prev.awayTeam === next.awayTeam &&
-    prev.winner === next.winner &&
-    prevScore.h === nextScore.h &&
-    prevScore.a === nextScore.a &&
-    prevProps.connector === nextProps.connector
-  );
-});
-
-function KnockoutBracketColumnBase({ title, matches, onScore, topOffset = 0, gap = 8, cardMinWidth = 260, showConnectors = false }) {
-  return (
-    <div style={{ marginTop: topOffset, minWidth: cardMinWidth }}>
+    <div style={{ minWidth: cardMinWidth > 0 ? cardMinWidth : "auto" }}>
       <div style={{
         fontSize: 12,
-        color: "#94a3b8",
+        color: "#7c2d12",
         fontFamily: "monospace",
         letterSpacing: 1,
         textTransform: "uppercase",
@@ -577,53 +630,14 @@ function KnockoutBracketColumnBase({ title, matches, onScore, topOffset = 0, gap
       }}>
         {title}
       </div>
-
-      <div style={{ display: "grid", gap }}>
-        {matches.map((match, idx) => (
-          <BracketMatchSlot
-            key={match.scoreKey}
-            match={match}
-            onScore={onScore}
-            connector={showConnectors ? (idx % 2 === 0 ? "top" : "bottom") : null}
-          />
+      <div style={{ display: "grid", gap: 8 }}>
+        {matches.map((match) => (
+          <MatchCard key={match.scoreKey} match={match} onScore={onScore} side="left" />
         ))}
       </div>
     </div>
   );
 }
-
-const KnockoutBracketColumn = memo(KnockoutBracketColumnBase, (prevProps, nextProps) => {
-  if (
-    prevProps.title !== nextProps.title ||
-    prevProps.topOffset !== nextProps.topOffset ||
-    prevProps.gap !== nextProps.gap ||
-    prevProps.cardMinWidth !== nextProps.cardMinWidth ||
-    prevProps.showConnectors !== nextProps.showConnectors ||
-    prevProps.matches.length !== nextProps.matches.length
-  ) {
-    return false;
-  }
-
-  for (let idx = 0; idx < prevProps.matches.length; idx += 1) {
-    const prev = prevProps.matches[idx];
-    const next = nextProps.matches[idx];
-    const prevScore = prev.score || { h: "", a: "" };
-    const nextScore = next.score || { h: "", a: "" };
-
-    if (
-      prev.scoreKey !== next.scoreKey ||
-      prev.homeTeam !== next.homeTeam ||
-      prev.awayTeam !== next.awayTeam ||
-      prev.winner !== next.winner ||
-      prevScore.h !== nextScore.h ||
-      prevScore.a !== nextScore.a
-    ) {
-      return false;
-    }
-  }
-
-  return true;
-});
 
 function countPlayedGroupMatches(scores) {
   let count = 0;
@@ -637,7 +651,7 @@ function countPlayedGroupMatches(scores) {
 }
 
 
-function ScoreInput({ value, onChange, disabled = false }) {
+function ScoreInput({ value, onChange, disabled = false, theme = "dark" }) {
   const handleChange = (e) => {
     if (disabled) return;
     const v = e.target.value;
@@ -658,14 +672,21 @@ function ScoreInput({ value, onChange, disabled = false }) {
       placeholder="–"
       style={{
         width: 46, height: 38,
-        background: disabled ? "#0b1220" : value !== "" ? "#14532d" : "#0a1628",
-        border: disabled ? "2px solid #1f2937" : value !== "" ? "2px solid #22c55e" : "2px solid #334155",
+        background: theme === "light"
+          ? (disabled ? "#f5f3ea" : value !== "" ? "#fff7cc" : "#fffdf7")
+          : (disabled ? "#0b1220" : value !== "" ? "#14532d" : "#0a1628"),
+        border: theme === "light"
+          ? (disabled ? "2px solid #d6d3cd" : value !== "" ? "2px solid #d4a017" : "2px solid #c9c2ae")
+          : (disabled ? "2px solid #1f2937" : value !== "" ? "2px solid #22c55e" : "2px solid #334155"),
         borderRadius: 8,
-        color: disabled ? "#475569" : value !== "" ? "#ffffff" : "#64748b",
+        color: theme === "light"
+          ? (disabled ? "#9ca3af" : value !== "" ? "#111827" : "#9ca3af")
+          : (disabled ? "#475569" : value !== "" ? "#ffffff" : "#64748b"),
         textAlign: "center", fontSize: 20, fontWeight: 900,
         outline: "none", fontFamily: "monospace", transition: "all 0.15s",
         cursor: disabled ? "not-allowed" : "text",
         opacity: disabled ? 0.85 : 1,
+        boxShadow: theme === "light" ? "0 1px 0 rgba(255,255,255,0.95) inset" : "none",
       }}
     />
   );
@@ -1046,32 +1067,61 @@ export default function App() {
           <div style={{ padding: 12 }}>
             {!isMobileView ? (
               <div style={{
-                border: "1px solid #1e3a5f",
-                borderRadius: 10,
-                background: "rgba(255,255,255,0.02)",
-                padding: 10,
-                overflowX: "auto",
+                background: "linear-gradient(180deg,#fbf7ea 0%,#f0ead7 100%)",
+                border: "1px solid #d8cba7",
+                borderRadius: 18,
+                padding: 28,
+                boxShadow: "0 18px 40px rgba(15,23,42,0.08)",
+                position: "relative",
+                overflow: "auto",
               }}>
                 <div style={{
-                  minWidth: 1500,
+                  position: "absolute",
+                  inset: 0,
+                  backgroundImage: "radial-gradient(circle at 50% 50%, rgba(214,181,82,0.15) 0, rgba(214,181,82,0.05) 20%, transparent 42%)",
+                  pointerEvents: "none",
+                  borderRadius: 18,
+                }} />
+
+                <div style={{
                   display: "grid",
-                  gridTemplateColumns: "280px 280px 280px 280px 280px",
-                  gap: 26,
+                  gridTemplateColumns: "1fr auto 1fr",
+                  gap: 32,
                   alignItems: "start",
+                  position: "relative",
+                  zIndex: 1,
+                  minWidth: 1200,
                 }}>
-                  <KnockoutBracketColumn title="16avos" matches={roundOf32} onScore={onScore} topOffset={0} gap={8} showConnectors />
-                  <KnockoutBracketColumn title="Octavos" matches={roundOf16} onScore={onScore} topOffset={26} gap={34} showConnectors />
-                  <KnockoutBracketColumn title="Cuartos" matches={quarterFinals} onScore={onScore} topOffset={70} gap={84} showConnectors />
-                  <KnockoutBracketColumn title="Semifinales" matches={semiFinals} onScore={onScore} topOffset={155} gap={170} showConnectors />
-                  <KnockoutBracketColumn title="Final" matches={final} onScore={onScore} topOffset={255} gap={8} />
+                  {/* LEFT BRACKET */}
+                  <div style={{ display: "grid", gridTemplateColumns: "auto auto", gap: 36, alignItems: "start", justifyContent: "end" }}>
+                    <RoundColumn title="16avos" matches={roundOf32.slice(0, 16)} onScore={onScore} side="left" />
+                    <RoundColumn title="Octavos" matches={roundOf16.slice(0, 8)} onScore={onScore} side="left" />
+                    <RoundColumn title="Cuartos" matches={quarterFinals.slice(0, 4)} onScore={onScore} side="left" />
+                    <RoundColumn title="Semifinales" matches={semiFinals.slice(0, 2)} onScore={onScore} side="left" />
+                  </div>
+
+                  {/* CENTER: Trophy + Final */}
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 24, minHeight: 600 }}>
+                    <Trophy />
+                    <FinalMatch match={final[0]} onScore={onScore} />
+                  </div>
+
+                  {/* RIGHT BRACKET */}
+                  <div style={{ display: "grid", gridTemplateColumns: "auto auto", gap: 36, alignItems: "start", justifyContent: "start" }}>
+                    <RoundColumn title="Semifinales" matches={semiFinals.slice(2, 4)} onScore={onScore} side="right" />
+                    <RoundColumn title="Cuartos" matches={quarterFinals.slice(4, 8)} onScore={onScore} side="right" />
+                    <RoundColumn title="Octavos" matches={roundOf16.slice(8, 16)} onScore={onScore} side="right" />
+                    <RoundColumn title="16avos" matches={roundOf32.slice(16, 32)} onScore={onScore} side="right" />
+                  </div>
                 </div>
               </div>
             ) : (
               <div style={{
-                border: "1px solid #1e3a5f",
-                borderRadius: 10,
-                background: "rgba(255,255,255,0.02)",
-                padding: 10,
+                border: "1px solid #d8cba7",
+                borderRadius: 18,
+                background: "linear-gradient(180deg,#fbf7ea 0%,#f0ead7 100%)",
+                padding: 14,
+                boxShadow: "0 18px 40px rgba(15,23,42,0.08)",
               }}>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(5,minmax(0,1fr))", gap: 6, marginBottom: 10 }}>
                   {MOBILE_KO_ROUNDS.map((round) => (
@@ -1079,9 +1129,9 @@ export default function App() {
                       key={round.key}
                       onClick={() => setActiveMobileKoRound(round.key)}
                       style={{
-                        border: activeMobileKoRound === round.key ? "1px solid #22c55e" : "1px solid #334155",
-                        background: activeMobileKoRound === round.key ? "rgba(34,197,94,0.14)" : "#0a1628",
-                        color: activeMobileKoRound === round.key ? "#bbf7d0" : "#94a3b8",
+                        border: activeMobileKoRound === round.key ? "1px solid #c28d0c" : "1px solid #c9c2ae",
+                        background: activeMobileKoRound === round.key ? "#ffefb0" : "#ffffff",
+                        color: activeMobileKoRound === round.key ? "#7c2d12" : "#374151",
                         fontSize: 11,
                         padding: "8px 4px",
                         borderRadius: 8,
@@ -1108,24 +1158,25 @@ export default function App() {
             )}
 
             <div style={{
-              border: "1px solid #1e3a5f",
-              borderRadius: 10,
+              border: "1px solid #d8cba7",
+              borderRadius: 12,
               padding: "12px 14px",
-              background: champion ? "linear-gradient(90deg,rgba(250,204,21,0.12),rgba(34,197,94,0.12))" : "rgba(255,255,255,0.02)",
+              background: champion ? "linear-gradient(90deg,rgba(255,231,140,0.95),rgba(243,216,90,0.75))" : "rgba(255,255,255,0.78)",
               display: "flex",
               alignItems: "center",
               gap: 8,
+              boxShadow: "0 8px 20px rgba(15,23,42,0.06)",
             }}>
-              <span style={{ fontSize: 13, color: "#94a3b8", fontFamily: "monospace", textTransform: "uppercase", letterSpacing: 1 }}>
+              <span style={{ fontSize: 13, color: "#6b7280", fontFamily: "monospace", textTransform: "uppercase", letterSpacing: 1 }}>
                 Campeón proyectado
               </span>
               {champion ? (
                 <>
                   <Flag team={champion} size={20} />
-                  <span style={{ color: "#fde68a", fontWeight: 900, fontSize: 16 }}>{champion}</span>
+                  <span style={{ color: "#7c2d12", fontWeight: 900, fontSize: 16 }}>{champion}</span>
                 </>
               ) : (
-                <span style={{ color: "#cbd5e1", fontSize: 14, fontWeight: 600 }}>Completa resultados hasta la final</span>
+                <span style={{ color: "#6b7280", fontSize: 14, fontWeight: 600 }}>Completa resultados hasta la final</span>
               )}
             </div>
           </div>
