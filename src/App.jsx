@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback, memo } from "react";
+import { useState, useEffect, useMemo, useCallback, memo } from "react";
 
 const FLAG_CODE = {
   "México":"mx","Sudáfrica":"za","Corea del Sur":"kr","Rep. Checa":"cz",
@@ -301,9 +301,10 @@ function assignBestThirdsToWinnerSlots(bestThirds) {
   return assignment;
 }
 
-function parseLoadedScore(scores, key) {
+function parseLoadedScore(scores, key, expectedSignature) {
   const sc = scores[key];
   if (!sc || sc.h === "" || sc.a === "") return null;
+  if (expectedSignature && sc.sig && sc.sig !== expectedSignature) return null;
   const h = parseInt(sc.h, 10);
   const a = parseInt(sc.a, 10);
   if (isNaN(h) || isNaN(a)) return null;
@@ -320,13 +321,15 @@ function getMatchWinner(score, homeTeam, awayTeam) {
 }
 
 function createKnockoutMatch(label, scoreKey, homeTeam, awayTeam, scores) {
-  const score = parseLoadedScore(scores, scoreKey);
+  const signature = `${homeTeam || "Por definir"}|${awayTeam || "Por definir"}`;
+  const score = parseLoadedScore(scores, scoreKey, signature);
   const winner = getMatchWinner(score, homeTeam, awayTeam);
   return {
     label,
     scoreKey,
     homeTeam: homeTeam || "Por definir",
     awayTeam: awayTeam || "Por definir",
+    signature,
     score,
     winner,
   };
@@ -445,7 +448,7 @@ function KnockoutMatchCardBase({ match, onScore }) {
             {match.homeTeam}
           </span>
         </div>
-        <ScoreInput value={sc.h} onChange={(v) => onScore(match.scoreKey, "h", v)} disabled={!canEdit} />
+        <ScoreInput value={sc.h} onChange={(v) => onScore(match.scoreKey, "h", v, match.signature)} disabled={!canEdit} />
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8, alignItems: "center" }}>
@@ -455,7 +458,7 @@ function KnockoutMatchCardBase({ match, onScore }) {
             {match.awayTeam}
           </span>
         </div>
-        <ScoreInput value={sc.a} onChange={(v) => onScore(match.scoreKey, "a", v)} disabled={!canEdit} />
+        <ScoreInput value={sc.a} onChange={(v) => onScore(match.scoreKey, "a", v, match.signature)} disabled={!canEdit} />
       </div>
 
       {draw && (
@@ -794,20 +797,26 @@ export default function App() {
   const [scores, setScores] = useState(loadScores);
   const [useProvidedTable, setUseProvidedTable] = useState(true);
   const [activeMobileKoRound, setActiveMobileKoRound] = useState("R32");
-  const lastKnockoutMatchupsRef = useRef({});
 
   // Guarda en localStorage con debounce para evitar bloquear la UI en cada tecla.
   useEffect(() => {
     const saveId = setTimeout(() => {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(scores));
-    }, 180);
+    }, 400);
 
     return () => clearTimeout(saveId);
   }, [scores]);
 
-  const onScore = useCallback((key, side, val) => {
+  const onScore = useCallback((key, side, val, matchSignature) => {
     setUseProvidedTable(false);
-    setScores((p) => ({ ...p, [key]: { ...(p[key] || { h: "", a: "" }), [side]: val } }));
+    setScores((p) => ({
+      ...p,
+      [key]: {
+        ...(p[key] || { h: "", a: "" }),
+        [side]: val,
+        ...(matchSignature ? { sig: matchSignature } : {}),
+      },
+    }));
   }, []);
 
   const played = useMemo(() => countPlayedGroupMatches(scores), [scores]);
@@ -838,35 +847,6 @@ export default function App() {
         return { title: "16avos", matches: roundOf32 };
     }
   }, [activeMobileKoRound, roundOf32, roundOf16, quarterFinals, semiFinals, final]);
-
-  useEffect(() => {
-    const knockoutMatches = [...roundOf32, ...roundOf16, ...quarterFinals, ...semiFinals, ...final];
-
-    setScores((prev) => {
-      let changed = false;
-      let next = prev;
-
-      knockoutMatches.forEach((match) => {
-        const key = match.scoreKey;
-        const currentSignature = `${match.homeTeam}|${match.awayTeam}`;
-        const previousSignature = lastKnockoutMatchupsRef.current[key];
-        const hasStoredScore = Boolean(next[key] && (next[key].h !== "" || next[key].a !== ""));
-        const pending = isPendingTeamName(match.homeTeam) || isPendingTeamName(match.awayTeam);
-
-        if (hasStoredScore && (pending || (previousSignature && previousSignature !== currentSignature))) {
-          if (!changed) next = { ...next };
-          delete next[key];
-          changed = true;
-        }
-      });
-
-      lastKnockoutMatchupsRef.current = Object.fromEntries(
-        knockoutMatches.map((m) => [m.scoreKey, `${m.homeTeam}|${m.awayTeam}`])
-      );
-
-      return changed ? next : prev;
-    });
-  }, [roundOf32, roundOf16, quarterFinals, semiFinals, final]);
 
   const handleReset = () => {
     if (confirm("¿Resetear todos los resultados?")) {
