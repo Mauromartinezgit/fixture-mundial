@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 const FLAG_CODE = {
   "México":"mx","Sudáfrica":"za","Corea del Sur":"kr","Rep. Checa":"cz",
@@ -102,6 +102,108 @@ const GROUPS_DATA = {
     ]},
 };
 
+const PROVIDED_GROUP_TABLE = {
+  A: [
+    { name: "México", pts: 9, gd: 6 },
+    { name: "Sudáfrica", pts: 4, gd: -1 },
+    { name: "Corea del Sur", pts: 3, gd: -1 },
+    { name: "Rep. Checa", pts: 1, gd: -4 },
+  ],
+  B: [
+    { name: "Suiza", pts: 7, gd: 4 },
+    { name: "Canadá", pts: 4, gd: 5 },
+    { name: "Bosnia y Herz.", pts: 4, gd: -1 },
+    { name: "Qatar", pts: 1, gd: -8 },
+  ],
+  C: [
+    { name: "Brasil", pts: 7, gd: 6 },
+    { name: "Marruecos", pts: 7, gd: 3 },
+    { name: "Escocia", pts: 3, gd: -3 },
+    { name: "Haití", pts: 0, gd: -6 },
+  ],
+  D: [
+    { name: "EE. UU.", pts: 6, gd: 4 },
+    { name: "Australia", pts: 4, gd: 0 },
+    { name: "Paraguay", pts: 4, gd: -2 },
+    { name: "Turquía", pts: 3, gd: -2 },
+  ],
+  E: [
+    { name: "Alemania", pts: 6, gd: 6 },
+    { name: "C. de Marfil", pts: 6, gd: 2 },
+    { name: "Ecuador", pts: 4, gd: 0 },
+    { name: "Curazao", pts: 1, gd: -8 },
+  ],
+  F: [
+    { name: "Países Bajos", pts: 7, gd: 6 },
+    { name: "Japón", pts: 5, gd: 4 },
+    { name: "Suecia", pts: 4, gd: 0 },
+    { name: "Túnez", pts: 0, gd: -10 },
+  ],
+  G: [
+    { name: "Bélgica", pts: 5, gd: 3 },
+    { name: "Egipto", pts: 5, gd: 2 },
+    { name: "Irán", pts: 3, gd: 0 },
+    { name: "Nueva Zelanda", pts: 1, gd: -6 },
+  ],
+  H: [
+    { name: "España", pts: 7, gd: 5 },
+    { name: "Cabo Verde", pts: 3, gd: 0 },
+    { name: "Uruguay", pts: 2, gd: -1 },
+    { name: "Arabia Saudita", pts: 1, gd: -4 },
+  ],
+  I: [
+    { name: "Francia", pts: 9, gd: 8 },
+    { name: "Noruega", pts: 6, gd: 1 },
+    { name: "Senegal", pts: 3, gd: 2 },
+    { name: "Irak", pts: 0, gd: -11 },
+  ],
+  J: [
+    { name: "Argentina", pts: 9, gd: 7 },
+    { name: "Austria", pts: 4, gd: 0 },
+    { name: "Argelia", pts: 4, gd: -2 },
+    { name: "Jordania", pts: 0, gd: -5 },
+  ],
+  K: [
+    { name: "Colombia", pts: 7, gd: 3 },
+    { name: "Portugal", pts: 5, gd: 5 },
+    { name: "R.D. del Congo", pts: 4, gd: 1 },
+    { name: "Uzbekistán", pts: 0, gd: -9 },
+  ],
+  L: [
+    { name: "Inglaterra", pts: 7, gd: 4 },
+    { name: "Croacia", pts: 6, gd: 0 },
+    { name: "Ghana", pts: 4, gd: 0 },
+    { name: "Panamá", pts: 0, gd: -4 },
+  ],
+};
+
+function getQualifiedDataFromProvidedTable() {
+  const groupKeys = Object.keys(PROVIDED_GROUP_TABLE);
+  const firstAndSecond = [];
+  const thirdPlaces = [];
+
+  groupKeys.forEach((gKey) => {
+    const rows = PROVIDED_GROUP_TABLE[gKey];
+    const first = rows[0];
+    const second = rows[1];
+    const third = rows[2];
+
+    firstAndSecond.push(
+      { group: gKey, pos: 1, name: first.name, pts: first.pts, gd: first.gd, gf: 0, gc: 0, pj: 3 },
+      { group: gKey, pos: 2, name: second.name, pts: second.pts, gd: second.gd, gf: 0, gc: 0, pj: 3 }
+    );
+
+    thirdPlaces.push({ group: gKey, pos: 3, name: third.name, pts: third.pts, gd: third.gd, gf: 0, gc: 0, pj: 3 });
+  });
+
+  const bestThirds = [...thirdPlaces]
+    .sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf)
+    .slice(0, 8)
+    .map((t, idx) => ({ ...t, rank: idx + 1 }));
+
+  return { firstAndSecond, bestThirds, thirdPlaces };
+}
+
 function calcStandings(gKey, scores) {
   const { teams, matches } = GROUPS_DATA[gKey];
   const st = teams.map((t) => ({ name: t, pts: 0, pj: 0, gf: 0, gc: 0 }));
@@ -144,54 +246,57 @@ function getQualifiedData(scores) {
 }
 
 const ROUND_32_SLOTS = [
-  { home: "A1", away: "A3" },
-  { home: "B1", away: "B3" },
-  { home: "C1", away: "C3" },
-  { home: "D1", away: "D3" },
-  { home: "E1", away: "E3" },
-  { home: "F1", away: "F3" },
-  { home: "G1", away: "G3" },
-  { home: "H1", away: "H3" },
-  { home: "I1", away: "L2" },
-  { home: "J1", away: "K2" },
-  { home: "K1", away: "J2" },
-  { home: "L1", away: "I2" },
-  { home: "A2", away: "H2" },
-  { home: "B2", away: "G2" },
-  { home: "C2", away: "F2" },
-  { home: "D2", away: "E2" },
+  { home: "B2", away: "A2" },
+  { home: "F1", away: "C2" },
+  { home: "E1", away: "T-E" },
+  { home: "I1", away: "T-I" },
+  { home: "A1", away: "T-A" },
+  { home: "L1", away: "T-L" },
+  { home: "C1", away: "F2" },
+  { home: "E2", away: "I2" },
+  { home: "K2", away: "L2" },
+  { home: "H1", away: "J2" },
+  { home: "D1", away: "T-D" },
+  { home: "G1", away: "T-G" },
+  { home: "B1", away: "T-B" },
+  { home: "K1", away: "T-K" },
+  { home: "J1", away: "H2" },
+  { home: "D2", away: "G2" },
 ];
 
-const WINNERS_VS_THIRDS_GROUPS = ["A", "B", "C", "D", "E", "F", "G", "H"];
+const WINNERS_VS_THIRDS_GROUPS = ["A", "B", "D", "E", "G", "I", "K", "L"];
+
+const THIRD_PLACE_PERMUTATION_TABLE = {
+  // Combinacion oficial: B, D, E, F, I, J, K, L
+  BDEFIJKL: { A: "E", B: "J", D: "B", E: "D", G: "I", I: "F", K: "L", L: "K" },
+};
 
 function assignBestThirdsToWinnerSlots(bestThirds) {
-  const winnerGroups = [...WINNERS_VS_THIRDS_GROUPS];
-  const assignment = {};
-  const used = new Set();
+  const thirdsByGroup = Object.fromEntries(bestThirds.map((t) => [t.group, t]));
+  const key = bestThirds.map((t) => t.group).sort().join("");
+  const mapped = THIRD_PLACE_PERMUTATION_TABLE[key];
 
-  function backtrack(idx) {
-    if (idx === winnerGroups.length) return true;
-
-    const winnerGroup = winnerGroups[idx];
-    for (let i = 0; i < bestThirds.length; i += 1) {
-      if (used.has(i)) continue;
-
-      const third = bestThirds[i];
-      // Regla de oro: evitar cruce entre equipos del mismo grupo en 16avos.
-      if (third.group === winnerGroup) continue;
-
-      used.add(i);
-      assignment[winnerGroup] = third;
-      if (backtrack(idx + 1)) return true;
-      used.delete(i);
-      delete assignment[winnerGroup];
+  if (mapped) {
+    const assignment = {};
+    for (const winnerGroup of WINNERS_VS_THIRDS_GROUPS) {
+      const thirdGroup = mapped[winnerGroup];
+      if (!thirdGroup || !thirdsByGroup[thirdGroup]) return null;
+      assignment[winnerGroup] = thirdsByGroup[thirdGroup];
     }
-
-    return false;
+    return assignment;
   }
 
-  const ok = backtrack(0);
-  return ok ? assignment : null;
+  // Fallback: asignacion simple para no romper la llave si la combinacion no esta en tabla.
+  const assignment = {};
+  const usedGroups = new Set();
+  for (const winnerGroup of WINNERS_VS_THIRDS_GROUPS) {
+    const candidate = bestThirds.find((t) => !usedGroups.has(t.group) && t.group !== winnerGroup);
+    if (!candidate) return null;
+    assignment[winnerGroup] = candidate;
+    usedGroups.add(candidate.group);
+  }
+
+  return assignment;
 }
 
 function parseLoadedScore(scores, key) {
@@ -226,7 +331,6 @@ function createKnockoutMatch(label, scoreKey, homeTeam, awayTeam, scores) {
 }
 
 function getKnockoutData(scores, firstAndSecond, bestThirds) {
-  const thirdsByGroup = Object.fromEntries(bestThirds.map((t) => [t.group, t]));
   const thirdAssignments = assignBestThirdsToWinnerSlots(bestThirds);
 
   const slotToTeam = {};
@@ -237,18 +341,14 @@ function getKnockoutData(scores, firstAndSecond, bestThirds) {
   if (thirdAssignments) {
     WINNERS_VS_THIRDS_GROUPS.forEach((winnerGroup) => {
       const thirdTeam = thirdAssignments[winnerGroup];
-      slotToTeam[`${winnerGroup}3`] = thirdTeam ? thirdTeam.name : "Por definir";
+      slotToTeam[`T-${winnerGroup}`] = thirdTeam ? thirdTeam.name : "Por definir";
     });
   } else {
-    // Fallback defensivo: si no se encuentra una asignación válida, mantener terceros por su propio grupo.
+    // Fallback defensivo si no se encuentra una asignacion valida.
     WINNERS_VS_THIRDS_GROUPS.forEach((group) => {
-      slotToTeam[`${group}3`] = thirdsByGroup[group]?.name || "Por definir";
+      slotToTeam[`T-${group}`] = "Por definir";
     });
   }
-
-  bestThirds.forEach((team) => {
-    slotToTeam[`${team.group}3`] = slotToTeam[`${team.group}3`] || team.name;
-  });
 
   const roundOf32 = ROUND_32_SLOTS.map((slot, idx) =>
     createKnockoutMatch(
@@ -314,6 +414,7 @@ function getKnockoutData(scores, firstAndSecond, bestThirds) {
 function KnockoutMatchCard({ match, onScore }) {
   const sc = match.score || { h: "", a: "" };
   const has = match.score && sc.h !== "" && sc.a !== "";
+  const canEdit = !isPendingTeamName(match.homeTeam) && !isPendingTeamName(match.awayTeam);
   const homeWin = has && sc.h > sc.a;
   const awayWin = has && sc.a > sc.h;
   const draw = has && sc.h === sc.a;
@@ -342,7 +443,7 @@ function KnockoutMatchCard({ match, onScore }) {
             {match.homeTeam}
           </span>
         </div>
-        <ScoreInput value={sc.h} onChange={(v) => onScore(match.scoreKey, "h", v)} />
+        <ScoreInput value={sc.h} onChange={(v) => onScore(match.scoreKey, "h", v)} disabled={!canEdit} />
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8, alignItems: "center" }}>
@@ -352,12 +453,18 @@ function KnockoutMatchCard({ match, onScore }) {
             {match.awayTeam}
           </span>
         </div>
-        <ScoreInput value={sc.a} onChange={(v) => onScore(match.scoreKey, "a", v)} />
+        <ScoreInput value={sc.a} onChange={(v) => onScore(match.scoreKey, "a", v)} disabled={!canEdit} />
       </div>
 
       {draw && (
         <div style={{ marginTop: 8, color: "#fca5a5", fontSize: 11, fontFamily: "monospace" }}>
           En eliminación directa no puede haber empate.
+        </div>
+      )}
+
+      {!canEdit && (
+        <div style={{ marginTop: 8, color: "#94a3b8", fontSize: 11, fontFamily: "monospace" }}>
+          Se habilita cuando estén definidos ambos equipos.
         </div>
       )}
     </div>
@@ -438,8 +545,9 @@ function countPlayedGroupMatches(scores) {
 }
 
 
-function ScoreInput({ value, onChange }) {
+function ScoreInput({ value, onChange, disabled = false }) {
   const handleChange = (e) => {
+    if (disabled) return;
     const v = e.target.value;
     // Permitir solo números o vacío
     if (v === "" || /^\d+$/.test(v)) {
@@ -453,16 +561,19 @@ function ScoreInput({ value, onChange }) {
   return (
     <input
       type="text" inputMode="numeric"
+      disabled={disabled}
       value={value} onChange={handleChange}
       placeholder="–"
       style={{
         width: 46, height: 38,
-        background: value !== "" ? "#14532d" : "#0a1628",
-        border: value !== "" ? "2px solid #22c55e" : "2px solid #334155",
+        background: disabled ? "#0b1220" : value !== "" ? "#14532d" : "#0a1628",
+        border: disabled ? "2px solid #1f2937" : value !== "" ? "2px solid #22c55e" : "2px solid #334155",
         borderRadius: 8,
-        color: value !== "" ? "#ffffff" : "#64748b",
+        color: disabled ? "#475569" : value !== "" ? "#ffffff" : "#64748b",
         textAlign: "center", fontSize: 20, fontWeight: 900,
         outline: "none", fontFamily: "monospace", transition: "all 0.15s",
+        cursor: disabled ? "not-allowed" : "text",
+        opacity: disabled ? 0.85 : 1,
       }}
     />
   );
@@ -638,18 +749,53 @@ function loadScores() {
 
 export default function App() {
   const [scores, setScores] = useState(loadScores);
+  const [useProvidedTable, setUseProvidedTable] = useState(true);
+  const lastKnockoutMatchupsRef = useRef({});
 
   // Guarda en localStorage cada vez que cambian los scores
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(scores));
   }, [scores]);
 
-  const onScore = (key, side, val) =>
+  const onScore = (key, side, val) => {
+    setUseProvidedTable(false);
     setScores((p) => ({ ...p, [key]: { ...(p[key] || { h: "", a: "" }), [side]: val } }));
+  };
 
   const played = countPlayedGroupMatches(scores);
-  const { firstAndSecond, bestThirds } = getQualifiedData(scores);
+  const { firstAndSecond, bestThirds } = useProvidedTable
+    ? getQualifiedDataFromProvidedTable()
+    : getQualifiedData(scores);
   const { roundOf32, roundOf16, quarterFinals, semiFinals, final, champion } = getKnockoutData(scores, firstAndSecond, bestThirds);
+
+  useEffect(() => {
+    const knockoutMatches = [...roundOf32, ...roundOf16, ...quarterFinals, ...semiFinals, ...final];
+
+    setScores((prev) => {
+      let changed = false;
+      let next = prev;
+
+      knockoutMatches.forEach((match) => {
+        const key = match.scoreKey;
+        const currentSignature = `${match.homeTeam}|${match.awayTeam}`;
+        const previousSignature = lastKnockoutMatchupsRef.current[key];
+        const hasStoredScore = Boolean(next[key] && (next[key].h !== "" || next[key].a !== ""));
+        const pending = isPendingTeamName(match.homeTeam) || isPendingTeamName(match.awayTeam);
+
+        if (hasStoredScore && (pending || (previousSignature && previousSignature !== currentSignature))) {
+          if (!changed) next = { ...next };
+          delete next[key];
+          changed = true;
+        }
+      });
+
+      lastKnockoutMatchupsRef.current = Object.fromEntries(
+        knockoutMatches.map((m) => [m.scoreKey, `${m.homeTeam}|${m.awayTeam}`])
+      );
+
+      return changed ? next : prev;
+    });
+  }, [roundOf32, roundOf16, quarterFinals, semiFinals, final]);
 
   const handleReset = () => {
     if (confirm("¿Resetear todos los resultados?")) {
