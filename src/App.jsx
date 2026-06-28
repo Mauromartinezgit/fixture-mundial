@@ -389,77 +389,6 @@ function countPlayedGroupMatches(scores) {
   return count;
 }
 
-const TOURNAMENT_FLOW = [
-  "48 equipos",
-  "12 grupos de 4",
-  "Clasifican: 12 primeros · 12 segundos · 8 mejores terceros",
-  "32 equipos",
-  "16avos de final (32 → 16)",
-  "Octavos de final (16 → 8)",
-  "Cuartos de final (8 → 4)",
-  "Semifinales (4 → 2)",
-  "Final (2 → Campeón)",
-];
-
-function TournamentFlowCard() {
-  return (
-    <div style={{
-      maxWidth: 1400,
-      margin: "18px auto 0",
-      padding: "0 14px",
-    }}>
-      <div style={{
-        background: "linear-gradient(160deg,#0d1f3c 0%,#081020 100%)",
-        borderRadius: 14,
-        border: "1px solid #1e3a5f",
-        boxShadow: "0 6px 24px rgba(0,0,0,0.6)",
-        overflow: "hidden",
-      }}>
-        <div style={{
-          background: "linear-gradient(90deg,#0f766e,#0e7490)",
-          padding: "10px 16px",
-          fontSize: 18,
-          fontWeight: 800,
-          color: "#ccfbf1",
-          letterSpacing: 1,
-          fontFamily: "Georgia,serif",
-        }}>
-          Formato del Torneo
-        </div>
-
-        <div style={{
-          padding: "16px 12px",
-          display: "grid",
-          justifyContent: "center",
-          gap: 4,
-        }}>
-          {TOURNAMENT_FLOW.map((step, idx) => (
-            <div key={step} style={{ display: "grid", justifyItems: "center", gap: 6 }}>
-              <div style={{
-                minWidth: 320,
-                maxWidth: 540,
-                textAlign: "center",
-                border: "1px solid #1e3a5f",
-                background: idx >= 4 ? "rgba(127,29,29,0.18)" : "rgba(34,197,94,0.10)",
-                borderRadius: 10,
-                padding: "8px 12px",
-                color: "#e2e8f0",
-                fontFamily: "monospace",
-                fontWeight: 700,
-                fontSize: 13,
-              }}>
-                {step}
-              </div>
-              {idx < TOURNAMENT_FLOW.length - 1 && (
-                <div style={{ color: "#94a3b8", fontFamily: "monospace", fontWeight: 800 }}>▼</div>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function ScoreInput({ value, onChange }) {
   const handleChange = (e) => {
@@ -892,8 +821,6 @@ export default function App() {
           </div>
         </div>
       </div>
-
-      <TournamentFlowCard />
 
       {/* FASE ELIMINATORIA */}
       <div style={{ maxWidth: 1400, margin: "18px auto 0", padding: "0 14px" }}>
